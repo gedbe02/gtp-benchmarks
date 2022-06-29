@@ -17,7 +17,12 @@
 
 ;; label-element? object -> true
 ;; Every value is considered to be a possible label-element.
-(define (label-element? obj) #t)
+(define/contract (label-element? obj)
+  (configurable-ctc
+   [max (->i ([obj any?])
+             [result (obj)])]
+   [types (-> any? #t)])
+    #t)
 
 ;; When comparing label elements, we use equal?.
 ;;
