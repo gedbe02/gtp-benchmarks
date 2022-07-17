@@ -7,13 +7,27 @@
  "structs.rkt"
  "ukkonen.rkt")
 
-(define false-thunk (lambda () #f))
+(require racket/contract)
+
+(define/contract false-thunk
+  (-> #f)
+  (lambda () #f))
 
 
 ;; longest-common-substring: string string -> string
 ;; Returns the longest common substring between the two strings.
 (provide longest-common-substring)
-(define (longest-common-substring s1 s2)
+
+(define (shorter s) ; s1 s2 
+  (define (not-longer t) ; string
+    (< (string-length t) (string-length s)))
+  not-longer)
+       
+(define/contract (longest-common-substring s1 s2)
+  (->i ([s1 string?]
+        [s2 string?])
+        [result (s1 s2)
+                (or/c string? "no lcs")])
   (label->string (longest-common-sublabel (string->label/with-sentinel s1)
                                           (string->label/with-sentinel s2))))
 
@@ -29,7 +43,11 @@
 ;; does a postorder traversal to mark up the inner nodes, and then
 ;; finds the inner node with the deepest string depth.
 (provide longest-common-sublabel)
-(define (longest-common-sublabel label-1 label-2)
+(define/contract (longest-common-sublabel label-1 label-2)
+  (->i ([label-1 label?]
+        [label-2 label?])
+       [result (label-1 label-2)
+               label?])
   (let ((label-1-marks (make-hasheq))
         (label-2-marks (make-hasheq))
         (deepest-node (node (make-label "no lcs") #f '() #f))
@@ -116,7 +134,8 @@
 ;; Boehm's paper on "Ropes, an alternative to strings" to see how
 ;; much work this would be.
 (provide path-label)
-(define path-label
+(define/contract path-label
+  (-> node? label?)
   (letrec
       [(collect-loop
         (lambda (current-node collected-labels total-length)

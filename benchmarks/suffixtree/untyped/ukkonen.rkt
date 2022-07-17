@@ -8,6 +8,8 @@
   (except-in "data.rkt" make-label)
   "label.rkt")
 
+(require racket/contract)
+
 (define dummy-node (node (make-label "dummy") #f '() #f))
 
 
@@ -23,7 +25,15 @@
 
 ;; Utility function for skip count, but also visible for those in
 ;; the know to skip-count from an arbitrary position in label.
-(define (skip-count-helper node label k N)
+(define/contract (skip-count-helper node label k N)
+  (->i ([node node?]
+        [label label?]
+        [k (and/c integer? (or/c positive? zero?))]
+        [N (and/c integer? (or/c positive? zero?))])
+       (values [result1 (node label k N)
+                        node?]
+               [result2 (node label k N)
+                        number?]))
   (define (loop node k)
     (let* ((child (node-find-child node (label-ref label k)))
            (child-label (node-up-label child))
@@ -53,7 +63,12 @@
 
 ;; If we hit the root, that offset is #f to indicate that we have to
 ;; start searching the suffix from scratch.
-(define (jump-to-suffix node)
+(define/contract (jump-to-suffix node)
+  (->i ([node node?])
+       (values [result1 (node)
+                        node?]
+               [result2 (node)
+                        (or/c boolean? number?)]))
   (define PARENT (node-parent node))
   (cond ((node-root? node)
          (values node #f))
@@ -98,7 +113,17 @@
 ;; done from a splicing extension.
 ;;
 ;; If we run off the label (implicit tree), returns (values #f #f #f).
-(define (find-next-extension-point/add-suffix-link! node label initial-i j)
+(define/contract (find-next-extension-point/add-suffix-link! node label initial-i j)
+  (->i ([node node?]
+        [label label?]
+        [initial-i (and/c integer? (or/c positive? zero?))]
+        [j (and/c integer? (or/c positive? zero?))])
+       (values [result1 (node label initial-i j)
+                        node?]
+               [result2 (node label initial-i j)
+                        (and/c integer? (or/c positive? zero?))]
+               [result3 (node label initial-i j)
+                        (and/c integer? (or/c positive? zero?))]))
   (define (fixed-start suffix-offset)
     (if suffix-offset (- initial-i suffix-offset) j))
 
@@ -155,7 +180,8 @@
 
 (provide extend-at-point!)
 ;; extend-at-point!: node number label number -> node
-(define extend-at-point!
+(define/contract extend-at-point!
+  (-> node? number? label? number? node?)
   (letrec [
            (main-logic
             (lambda (node offset label i)
@@ -191,7 +217,8 @@
 ;; suffix-tree-add!: tree label -> void
 ;; Adds a new label and its suffixes to the suffix tree.
 ;; Precondition: label is nonempty.
-(define suffix-tree-add!
+(define/contract suffix-tree-add!
+  (-> suffix-tree? label? void?)
   (letrec
       [
        (do-construction!

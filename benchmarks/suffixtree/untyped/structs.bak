@@ -1,11 +1,11 @@
 #lang racket/base
-(require
+(require "../base/untyped.rkt"
          racket/list)
-
-(require racket/contract)
 
 (require "label.rkt"
   (except-in "data.rkt" make-label))
+
+(require racket/contract)
 
 (provide
  tree?
@@ -27,28 +27,22 @@
   (make-suffix-tree
    ;; The root node has no label, no parent, an empty list of
    ;; children.  Its suffix link is invalid, but we set it to #f.
-   (let ((root (make-node (make-label (make-vector 0)) #f (list) #f)))
+   (let ((root (make-node (make-label (make-vector 0 'X)) #f (list) #f)))
      root)))
 
-
+; node -> boolean -- whether or not node-parent is false
 (define/contract (node-root? node)
-  (->i ([node node?])
-       [result (node)
-               boolean?])
+  (-> (or/c node? #f) boolean?)
   (eq? #f (node-parent node)))
 
 
 ;; node-add-leaf!: node label -> node
 ;; Attaches a new leaf node to an internal node.  Returns thew new leaf.
 (define/contract (node-add-leaf! node label)
-  (->i ([node node?]
-        [label label?])
-       [result (node label)
-               node?])
+  (-> node? label? node?)
   (let ((leaf (make-node label node (list) #f)))
     (node-add-child! node leaf)
     leaf))
-
 
 ;; node-add-child!: node node -> void
 ;; Adds to the node list.
@@ -63,10 +57,7 @@
 ;; node-remove-child!: node node -> void
 ;; Removes child node.
 (define/contract (node-remove-child! node child)
-  (->i ([node node?]
-        [child node?])
-       [result (node child)
-               void?])
+  (-> node? node? void?)
   (set-node-children! node (remq child (node-children node))))
 
 
@@ -74,14 +65,10 @@
 ;; children representation based on density?
 (define children-list list)
 
-(provide [contract-out (children-list list)])
-
 ;; node-leaf?: node -> boolean
 ;; Returns true if node is a leaf
 (define/contract (node-leaf? node)
-  (->i ([node node?])
-       [result (node)
-               boolean?])
+  (-> node? boolean?)
   (empty? (node-children node)))
 
 
@@ -91,9 +78,9 @@
 ;; label 0).  If none can be found, returns #f.
 (define/contract (node-find-child node label-element)
   (->i ([node node?]
-        [label-element (or/c char? symbol?)])
-       [result (node label-element)
-               (or/c node? #f)])
+       [label-element (or/c char? symbol? void?)])
+      [result (node label-element)
+              (or/c node? #f)])
   (define (loop children)
     (cond ((null? children) #f)
           ((label-element-equal? label-element (label-ref (node-up-label (first children)) 0))
@@ -116,34 +103,36 @@
          (parent (node-parent node))
          (new-node (make-node pre-label parent (children-list node) #f)))
     (set-node-up-label! node post-label)
+    (unless parent (error "node-up-split!"))
     (node-remove-child! parent node)
     (set-node-parent! node new-node)
     (node-add-child! parent new-node)
     new-node))
 
 
-;; node-up-splice-leaf!: node offset label -> (values node node)
+;; node-up-splice-leaf!: node offset label -> (values nfode node)
 ;;
 ;; Adds a new leaf at a splice joint between the node and its
 ;; parent.  Returns both the joint and the leaf.
-(define/contract (node-up-splice-leaf! node offset leaf-label)
-  (->i ([node node?]
-        [offset (and/c integer? (or/c positive? zero?))]
+(define (node-up-splice-leaf! node offset leaf-label)
+  ;(-> node? number? label? node?)
+  #|(->i ([node node?]
+        [offset (and/ integer? (or/c positive? zero?))]
         [leaf-label label?])
-       (values [result1 (node offset leaf-label) node?]
-               [result2 (node offset leaf-label) node?]))
-        (let* ((split-node (node-up-split! node offset))
+       [result1 (node offset leaf-label)
+               any/c])|#
+  ;(println node) ; node 
+  ;(println offset) ; 1
+  ;(println (label->string (node-up-label (node-up-split! node offset)))) ; "n"
+  (let* ((split-node (node-up-split! node offset))
          (leaf (node-add-leaf! split-node leaf-label)))
-    (values split-node leaf)))
+         (values split-node leaf)))
 
 
 ;; tree-contains?: tree label -> boolean
 ;; Returns true if the tree contains the given label.
 (define/contract (tree-contains? tree label)
-  (->i ([tree suffix-tree?]
-        [label label?])
-       [result (tree label)
-               boolean?])
+  (-> suffix-tree? label? boolean?)
   (node-follow/k (suffix-tree-root tree)
                  label
                  (lambda args #t)
@@ -160,42 +149,74 @@
 ;; Traverses the node's edges along the elements of the input label.
 ;; Written in continuation-passing-style for leakage containment.
 ;; One of the four continuation arguments will be executed.
-(define/contract node-follow/k
-  (-> node? label? (-> node? any/c) (-> node? number? any/c) (-> node? label? number? any/c) (-> node? number? label? number? any/c) any/c)
-  (lambda (node original-label
-                matched-at-node/k
-                matched-in-edge/k
-                mismatched-at-node/k
-                mismatched-in-edge/k)
-    (letrec
-        ((EDGE/k
-          ;; follows an edge
-          (lambda (node label label-offset)
-            (let ((up-label (node-up-label node)))
-              (let loop ((k 0))
-                (cond
-                 ((= k (label-length up-label))
-                  (NODE/k node label (+ label-offset k)))
-                 ((= (+ label-offset k) (label-length label))
-                  (matched-in-edge/k node k))
-                 ((label-element-equal? (label-ref up-label k)
-                                        (label-ref label (+ k label-offset)))
-                  (loop (add1 k)))
-                 (else
-                  (mismatched-in-edge/k node k label
-                                        (+ k label-offset))))))))
-         ;; follows a node
-         (NODE/k
-          (lambda (node label label-offset)
-            (if (= (label-length label) label-offset)
-                (matched-at-node/k node)
-                (let ((child (node-find-child
-                              node
-                              (label-ref label label-offset))))
-                  (if child
-                      (EDGE/k child label label-offset)
-                      (mismatched-at-node/k node label label-offset)))))))
-      (NODE/k node (label-copy original-label) 0))))
+(define (valid-pair? n)
+  (define (pair-checker x)
+    (and/c pair? (equal? x n)))
+  pair-checker)
+
+(define/contract (node-follow/k node
+                       original-label
+                       matched-at-node/k
+                       matched-in-edge/k
+                       mismatched-at-node/k
+                       mismatched-in-edge/k)
+  ;(-> node? label? (-> any/c list?) any/c any/c any/c any/c)
+  (->i ([node node?]
+        [original-label label?] 
+        [matched-at-node/k (-> node? (valid-pair? (make-node (make-label "dummy") #f '() #f)))]
+        [matched-in-edge/k (->i ([node node?]
+                                 [offset (and/c integer? (or/c positive? zero?))])
+                                [result (node offset)
+                                        (valid-pair? (make-node (make-label "dummy") #f '() #f))])]
+        [mismatched-at-node/k (->i ([node node?]
+                                    [label label?]
+                                    [label-offset (and/c integer? (or/c positive? zero?))])
+                                   [result (node label label-offset)
+                                           (valid-pair? (make-node (make-label "dummy") #f '() #f))])]
+        [mismatched-in-edge/k (->i ([node node?]
+                                    [offset (and/c integer? (or/c positive? zero?))]
+                                    [label label?]
+                                    [label-offset (and/c integer? (or/c positive? zero?))])
+                                   [result (node offset label label-offset)
+                                           (valid-pair? (make-node (make-label "dummy") #f '() #f))])])
+       [result (node original-label matched-at-node/k matched-in-edge/k mismatched-at-node/k mismatched-in-edge/k)
+               any/c])
+  ; prints
+  ;(println node)
+  ;(println original-label)
+  ;(println (matched-at-node/k (make-node (make-label "test") #f '() #f)))
+  ;(println matched-in-edge/k)
+  ;(println mismatched-at-node/k)
+  ;(println mismatched-in-edge/k)
+  ; actual function
+  (define (EDGE/k node label label-offset)
+    (define up-label (node-up-label node))
+    (let loop ((k 0))
+      (define k+label-offset (+ k label-offset))
+      (cond
+       ((= k (label-length up-label))
+        (unless (index? k+label-offset) (error "node/folllowd"))
+        (NODE/k node label k+label-offset))
+       ((= k+label-offset (label-length label))
+        (unless (index? k) (error "node/followk"))
+        (matched-in-edge/k node k)
+        (println k))
+       ((label-element-equal? (label-ref up-label k)
+                              (label-ref label k+label-offset))
+        (loop (add1 k)))
+       (else
+        (unless (and (index? k)
+                     (index? k+label-offset)) (error "node-follow/k mismatched fail"))
+        (mismatched-in-edge/k node k label
+                              k+label-offset)))))
+  (define (NODE/k node label label-offset)
+    (if (= (label-length label) label-offset)
+        (matched-at-node/k node)
+        (let ([child (node-find-child node (label-ref label label-offset))])
+          (if child
+              (EDGE/k child label label-offset)
+              (mismatched-at-node/k node label label-offset)))))
+  (NODE/k node (label-copy original-label) 0))
 
 
 ;; node-position-at-end?: node number -> boolean
