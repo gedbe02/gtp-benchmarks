@@ -57,7 +57,7 @@
 
 ;; make-label: label-element -> label
 ;; Constructs a new label from either a string or a vector of things.
-(define (ext:make-label label-element)
+(define/contract (ext:make-label label-element)
   (->i ([label-element (or/c string? vector?)])
        [result (label-element)
                label?])
