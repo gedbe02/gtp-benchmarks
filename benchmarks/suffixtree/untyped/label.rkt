@@ -4,7 +4,7 @@
   "data.rkt")
 
 (require racket/contract)
-
+(require racket/vector)
 ;; Label implementation.  Labels are like strings, but also allow for
 ;; efficient shared slicing.
 ;;
@@ -19,10 +19,7 @@
 
 ;; label-element? object -> true
 ;; Every value is considered to be a possible label-element.
-(define/contract (label-element? obj)
-  (->i ([obj any/c])
-       [result (obj)
-               #t])
+(define (label-element? obj)
   #t)
 
 ;; When comparing label elements, we use equal?.
@@ -32,35 +29,204 @@
 
 
 (provide
-         (rename-out [ext:make-label make-label])
-         label-element?
-         label-element-equal?
-         string->label
-         string->label/with-sentinel
-         vector->label
-         vector->label/with-sentinel
-         label->string
-         label->string/removing-sentinel
-         label->vector
-         label-length
-         label-ref
-         sublabel
-         sublabel!
-         label-prefix?
-         label-equal?
-         label-empty?
-         label-copy
-         label-ref-at-end?
-         label-source-id
-         label-same-source?)
+ (contract-out
+  [rename ext:make-label make-label
+          (->i ([label-element (or/c string? vector?)])
+               [result (label-element)
+                       (lambda (result) 
+                         (and (label? result)
+                              (and (= (label-i result) 0)
+                                   (= (label-j result) (cond [(string? label-element) (string-length label-element)]
+                                                             [(vector? label-element) (vector-length label-element)])))))])]
+                                       
+  [label-element?
+   (->i ([obj any/c])
+        [result (obj)
+                #t])]
+  [label-element-equal?
+   (->i ([l1 label-element?]
+         [l2 label-element?])
+        [result (l1 l2)
+                boolean?])]
+  [string->label
+   (->i ([s string?])
+        [result (s)
+                (lambda (result)
+                  (and (label? result)
+                       (and (equal? (label-datum result) s)
+                            (and (= (label-i result) 0)
+                                 (= (label-j result) (string-length s))))))])]
+  [string->label/with-sentinel
+   (->i ([s string?])
+        [result (s)
+                (lambda (result)
+                  (and (label? result)
+                       (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                            (and (equal? (list->string
+                                          (vector->list
+                                           (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)))) s)
+                                 (and (= (label-i result) 0)
+                                      (= (label-j result) (+ (string-length s) 1)))))))])]
+  [vector->label
+   (->i ([vector vector?])
+        [result (vector)
+                (lambda (result)
+                  (and (label? result)
+                       (and (equal? (label-datum result) vector)
+                            (and (= (label-i result) 0)
+                                 (= (label-j result) (vector-length vector))))))])]       
+  [vector->label/with-sentinel
+   (->i ([vector vector?])
+        [result (vector)
+                (lambda (result)
+                  (and (label? result)
+                       (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                            (and (equal? (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)) vector)
+                                 (and (= (label-i result) 0)
+                                      (= (label-j result) (+ (vector-length vector) 1)))))))])]
+  [label-length
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))])
+        [result (label)
+                (lambda (result)
+                  (and (= (- (label-j label) (label-i label)) result)
+                       (and (integer? result)
+                            (or (positive? result) (zero? result)))))])]
+  [label-ref
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
+         [k (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
+        [result (label k)
+                (or/c char? symbol?)])]
+  [sublabel
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
+         [n (and/c integer? (or/c positive? zero?))])
+        ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
+        [result (label n num)
+                (lambda (result)
+                  (and (label? result)
+                       (and (vector? (label-datum result))
+                            (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                                 (and (and (integer? (label-i result)) (or (positive? (label-i result)) (zero? (label-i result))))
+                                      (and (and (integer? (label-j result)) (or (positive? (label-j result)) (zero? (label-j result))))
+                                           (> (label-j result) (label-i result))))))))])]
+  [sublabel!
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                      (>= (label-j l) (label-i l)))))))]
+         [n (and/c integer? (or/c positive? zero?))])
+        ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
+        [result (label n num)
+                void?])]
+  [label-prefix?
+   (->i ([prefix (lambda (l)
+                   (and (label? l)
+                        (and (vector? (label-datum l))
+                             (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                  (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                       (>= (label-j l) (label-i l)))))))]
+         [other-label (lambda (l)
+                        (and (label? l)
+                             (and (vector? (label-datum l))
+                                  (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                       (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                            (>= (label-j l) (label-i l)))))))])
+        [result (prefix other-label)
+                boolean?])]
+  [label-equal?
+   (->i ([l1 (lambda (l)
+               (and (label? l)
+                    (and (vector? (label-datum l))
+                         (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                              (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                   (>= (label-j l) (label-i l)))))))]
+         [l2 (lambda (l)
+               (and (label? l)
+                    (and (vector? (label-datum l))
+                         (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                              (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                   (>= (label-j l) (label-i l)))))))])
+        [result (l1 l2)
+                boolean?])]
+  [label-empty?
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                      (>= (label-j l) (label-i l)))))))])
+        [result (label)
+                boolean?])]
+  [label-copy
+   (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                      (>= (label-j l) (label-i l)))))))])
+        [result (label)
+                (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                      (>= (label-j l) (label-i l)))))))])]
+   [label-ref-at-end?
+    (->i ([label (lambda (l)
+                  (and (label? l)
+                       (and (vector? (label-datum l))
+                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                      (>= (label-j l) (label-i l)))))))]
+          [offset (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
+         [result (label offset)
+                 boolean?])]
+   [label-source-id
+    (->i ([label (lambda (l)
+                   (and (label? l)
+                        (and (vector? (label-datum l))
+                             (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                  (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                       (>= (label-j l) (label-i l)))))))])
+         [result (label)
+                 (and/c integer? (or/c positive? zero?))])]
+   [label-same-source?
+    (->i ([label-1 (lambda (l)
+                     (and (label? l)
+                          (and (vector? (label-datum l))
+                               (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                    (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                         (>= (label-j l) (label-i l)))))))]
+          [label-2 (lambda (l)
+                     (and (label? l)
+                          (and (vector? (label-datum l))
+                               (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                    (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                         (>= (label-j l) (label-i l)))))))])
+         [result (label-1 label-2)
+                 boolean?])])
+   ; these aren't used except for debugging
+   label->string
+   label->string/removing-sentinel
+   label->vector)
 
 
 ;; make-label: label-element -> label
 ;; Constructs a new label from either a string or a vector of things.
-(define/contract (ext:make-label label-element)
-  (->i ([label-element (or/c string? vector?)])
-       [result (label-element)
-               label?])
+(define (ext:make-label label-element)
   (cond ((string? label-element) (string->label label-element))
         ((vector? label-element) (vector->label label-element))
         (else
@@ -77,10 +243,7 @@
 
 ;; vector->label vector
 ;; Constructs a new label from the input vector.
-(define/contract (vector->label vector)
-  (->i ([vector vector?])
-       [result (vector)
-               label?])
+(define (vector->label vector)
   (make-label (vector->immutable-vector vector)
               0 (vector-length vector)))
 
@@ -88,10 +251,7 @@
 ;; vector->label vector
 ;; Constructs a new label from the input vector, with a sentinel
 ;; symbol at the end.
-(define/contract (vector->label/with-sentinel vector)
-  (->i ([vector vector?])
-       [result (vector)
-               label?])
+(define (vector->label/with-sentinel vector)
   (let* ((N (vector-length vector))
          (V (make-vector (add1 N))))
     (vector-set! V N (make-sentinel))
@@ -101,11 +261,9 @@
                  (loop (add1 i)))
           (vector->label V)))))
 
-
 ;; string->label: string -> label
 ;; Constructs a new label from the input string.
-(define/contract string->label
-  (-> string? label?)
+(define string->label
   (let ((f (compose vector->label list->vector string->list)))
     (lambda (str) (f str))))
 
@@ -124,46 +282,43 @@
 
 ;; label-length: label -> number?
 ;; Returns the length of the label.
-(define/contract (label-length label)
-  (->i ([label label?])
-       [result (label)
-               (and/c integer? (or/c positive? zero?))])
+(define (label-length label)
   (- (label-j label) (label-i label)))
 
 
 ;; label-ref: label number? -> char
 ;; Returns the kth element in the label.
-(define/contract (label-ref label k)
-  (->i ([label label?]
-       [k (and/c integer? (or/c positive? zero?))])
-      [result (label k)
-              (or/c char? sentinel?)])
+(define (label-ref label k)
   (vector-ref (label-datum label) (+ k (label-i label))))
 
 
 ;; sublabel: label number number -> label
 ;; Gets a slice of the label on the half-open interval [i, j)
-(define/contract sublabel
-  (->* (label? number?) (number?) label?)
+(define sublabel
   (case-lambda
     ((label i)
-     (sublabel label i (label-length label)))
+     (define s (sublabel label i (label-length label)))
+     ;(displayln (format "label:(datum:~a i:~a j:~a) i:~a" (label-datum s) (label-i s) (label-j s) i))
+     s)
     ((label i j)
      (unless (<= i j)
        (error 'sublabel "illegal sublabel [~a, ~a]" i j))
-     (make-label (label-datum label)
-                 (+ i (label-i label))
-                 (+ j (label-i label))))))
+     (define t (make-label (label-datum label)
+                           (+ i (label-i label))
+                           (+ j (label-i label))))
+     ;(displayln (format "label:(datum:~a i:~a j:~a) i:~a j:~a" (label-datum t) (label-i t) (label-j t) i j))
+     t)))
 
 
 ;; sublabel!: label number number -> void
 ;; destructively sets the input label to sublabel.
-(define/contract sublabel!
-  (->* (label? number?) (number?) void?)
+(define sublabel!
   (case-lambda
     ((label i)
      (sublabel! label i (label-length label)))
+    ;(displayln (format "datum:~a i:~a" (label-datum label) (label-i label))))
     ((label i j)
+     ;(displayln (format "datum:~a i:~a j:~a" (label-datum label) (label-i label) (label-j label)))
      (begin
        ;; order dependent code ahead!
        (set-label-j! label (+ j (label-i label)))
@@ -173,15 +328,12 @@
 
 ;; label-prefix?: label label -> boolean
 ;; Returns true if the first label is a prefix of the second label
-(define/contract (label-prefix? prefix other-label)
-  (->i ([prefix label?]
-        [other-label label?])
-       [result (prefix other-label)
-               boolean?])
+(define (label-prefix? prefix other-label)
+  ;(displayln (format "prefix:~a prefixi:~a prefixj:~a other:~a otheri:~a otherj:~a" (label-datum prefix) (label-i prefix) (label-j prefix) (label-datum other-label) (label-i other-label) (label-j other-label)))
   (let ((m (label-length prefix))
         (n (label-length other-label)))
     (if (> m n)                       ; <- optimization: prefixes
-					; can't be longer.
+        ; can't be longer.
         #f
         (let loop ((k 0))
           (if (= k m)
@@ -192,21 +344,14 @@
 
 ;; label-equal?: label label -> boolean
 ;; Returns true if the two labels are equal.
-(define/contract (label-equal? l1 l2)
-  (->i ([l1 label?]
-        [l2 label?])
-       [result (l1 l2)
-               boolean?])
+(define(label-equal? l1 l2)
   (and (= (label-length l1) (label-length l2))
        (label-prefix? l1 l2)))
 
 
 ;; label-empty?: label -> boolean
 ;; Returns true if the label is considered empty
-(define/contract (label-empty? label)
-  (->i ([label label?])
-       [result (label)
-               boolean?])
+(define (label-empty? label)
   (>= (label-i label) (label-j label)))
 
 
@@ -253,35 +398,22 @@
 
 ;; label-copy: label->label
 ;; Returns a copy of the label.
-(define/contract (label-copy label)
-  (->i ([label label?])
-       [result (label)
-               label?])
+(define (label-copy label)
   (make-label (label-datum label) (label-i label) (label-j label)))
 
 
 ;; label-ref-at-end?: label number -> boolean
-(define/contract (label-ref-at-end? label offset)
-  (->i ([label label?]
-        [offset (and/c integer? (or/c positive? zero?))])
-       [result (label offset)
-               boolean?])
+(define (label-ref-at-end? label offset)
+  ;(displayln (format "i:~a j:~a offset:~a" (label-i label) (label-j label) offset))
   (= offset (label-length label)))
 
 
 ;; label-source-id: label -> number
-(define/contract (label-source-id label)
-  (->i ([label label?])
-       [result (label)
-               (and/c integer? (or/c positive? zero?))])
+(define (label-source-id label)
   (eq-hash-code (label-datum label)))
 
 ;; label-same-source?: label label -> boolean
-(define/contract (label-same-source? label-1 label-2)
-  (->i ([label-1 label?]
-        [label-2 label?])
-       [result (label-1 label-2)
-               boolean?])
+(define (label-same-source? label-1 label-2)
   (eq? (label-datum label-1) (label-datum label-2)))
 
 ;; --- from suffixtree.rkt

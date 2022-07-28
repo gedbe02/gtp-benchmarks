@@ -5,7 +5,9 @@
   (struct-out suffix-tree)
   (struct-out node))
 
-
+;datum (or string vector)
+;(= i 0)
+;(= j (length datum))
 (define-struct label (datum i j) #:mutable)
 
 ;; A suffix tree consists of a root node.

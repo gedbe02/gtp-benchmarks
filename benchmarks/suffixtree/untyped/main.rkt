@@ -18,7 +18,7 @@
   (define lines (file->lines testfile))
   (time
     (for* ([a lines] [b lines])
-      (longest-common-substring a b)))
+      2(longest-common-substring a b)))
   (void))
 
 (main SMALL_TEST)

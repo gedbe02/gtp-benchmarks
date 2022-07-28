@@ -8,22 +8,36 @@
   (except-in "data.rkt" make-label))
 
 (provide
- tree?
- make-tree
- tree-root
- new-suffix-tree
- node-find-child
- node-root?
- node-position-at-end?
- node-add-leaf!
- node-up-splice-leaf!
- node-follow/k)
+ (contract-out
+ [tree?
+  (-> any/c boolean?)]
+ [make-tree
+  (-> tree?)]
+ [tree-root
+  (-> tree? node?)]
+ [new-suffix-tree
+  (-> tree?)]
+ [node-find-child
+  (-> node? label-element? (or/c node? #f))]
+ [node-root?
+  (-> node? boolean?)]
+ [node-position-at-end?
+  (-> node? number? boolean?)]
+ [node-add-leaf!
+  (-> node? label? node?)]
+ [node-up-splice-leaf!
+  (->i ([node node?]
+        [offset number?]
+        [leaf-label label?])
+       (values [result1 (node offset leaf-label) node?]
+               [result2 (node offset leaf-label) node?]))]
+ [node-follow/k
+  (-> node? label? (-> node? any/c) (-> node? number? any/c) (-> node? label? number? any/c) (-> node? number? label? number? any/c) any/c)]))
 
 
 ;; new-suffix-tree: void -> suffix-tree
 ;; Builds a new empty suffix-tree.
-(define/contract (new-suffix-tree)
-  (-> suffix-tree?)
+(define (new-suffix-tree)
   (make-suffix-tree
    ;; The root node has no label, no parent, an empty list of
    ;; children.  Its suffix link is invalid, but we set it to #f.
@@ -31,20 +45,13 @@
      root)))
 
 
-(define/contract (node-root? node)
-  (->i ([node node?])
-       [result (node)
-               boolean?])
+(define (node-root? node)
   (eq? #f (node-parent node)))
 
 
 ;; node-add-leaf!: node label -> node
 ;; Attaches a new leaf node to an internal node.  Returns thew new leaf.
-(define/contract (node-add-leaf! node label)
-  (->i ([node node?]
-        [label label?])
-       [result (node label)
-               node?])
+(define (node-add-leaf! node label)
   (let ((leaf (make-node label node (list) #f)))
     (node-add-child! node leaf)
     leaf))
@@ -126,12 +133,7 @@
 ;;
 ;; Adds a new leaf at a splice joint between the node and its
 ;; parent.  Returns both the joint and the leaf.
-(define/contract (node-up-splice-leaf! node offset leaf-label)
-  (->i ([node node?]
-        [offset (and/c integer? (or/c positive? zero?))]
-        [leaf-label label?])
-       (values [result1 (node offset leaf-label) node?]
-               [result2 (node offset leaf-label) node?]))
+(define (node-up-splice-leaf! node offset leaf-label)
         (let* ((split-node (node-up-split! node offset))
          (leaf (node-add-leaf! split-node leaf-label)))
     (values split-node leaf)))
@@ -202,11 +204,7 @@
 ;;
 ;; Returns true if the position defined by node and the up-label
 ;; offset are pointing at the end of the node.
-(define/contract (node-position-at-end? node offset)
-  (->i ([node node?]
-        [offset (and/c integer? (or/c positive? zero?))])
-       [result (node offset)
-               boolean?])
+(define (node-position-at-end? node offset)
   (label-ref-at-end? (node-up-label node) offset))
 
 ;; --- from suffixtree.rkt
