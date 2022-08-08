@@ -6,7 +6,7 @@
   (struct-out node))
 
 ;datum (or string vector)
-;(= i 0)
+;(= i (number and (</c j)))
 ;(= j (length datum))
 (define-struct label (datum i j) #:mutable)
 

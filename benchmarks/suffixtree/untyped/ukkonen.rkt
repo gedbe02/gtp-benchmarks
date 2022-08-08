@@ -13,7 +13,35 @@
 (define dummy-node (node (make-label "dummy") #f '() #f))
 
 
-(provide skip-count)
+(provide
+ (contract-out
+  [skip-count
+   (->i ([node (lambda (node)
+                 (and (node? node)
+                      (and (label? (node-up-label node))
+                           (and (or (node? (node-parent node))
+                                    (equal? (node-parent node) #f))
+                                (and ((listof node?) (node-children node))
+                                     (or (node? (node-suffix-link node))
+                                         (equal? (node-suffix-link node) #f)))))))]
+         [label (lambda (label)
+                  (and (label? label)
+                       (and (or (string? (label-datum label))
+                                (vector? (label-datum label)))
+                            (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
+        (values [result1 (node label) (lambda (node)
+                                        (and (node? node)
+                                             (and (label? (node-up-label node))
+                                                  (and (or (node? (node-parent node))
+                                                           (equal? (node-parent node) #f))
+                                                       (and ((listof node?) (node-children node))
+                                                            (or (node? (node-suffix-link node))
+                                                                (equal? (node-suffix-link node) #f)))))))]
+                [result2 (node label) (lambda (r2)
+                                        (and (and (integer? r2)
+                                                  (or (positive? r2) (zero? r2)))
+                                             (= (length (node-up-label node)) r2)))]))]))
 ;; skip-count: node label -> (values node number)
 ;;
 ;; Follows down the node using the skip-count rule until we exhaust
@@ -25,15 +53,7 @@
 
 ;; Utility function for skip count, but also visible for those in
 ;; the know to skip-count from an arbitrary position in label.
-(define/contract (skip-count-helper node label k N)
-  (->i ([node node?]
-        [label label?]
-        [k (and/c integer? (or/c positive? zero?))]
-        [N (and/c integer? (or/c positive? zero?))])
-       (values [result1 (node label k N)
-                        node?]
-               [result2 (node label k N)
-                        number?]))
+(define (skip-count-helper node label k N)
   (define (loop node k)
     (let* ((child (node-find-child node (label-ref label k)))
            (child-label (node-up-label child))
@@ -52,7 +72,28 @@
 
 
 
-(provide jump-to-suffix)
+(provide
+ (contract-out
+  [jump-to-suffix
+   (->i ([node (lambda (node)
+                 (and (node? node)
+                      (and (label? (node-up-label node))
+                           (and (or (node? (node-parent node))
+                                    (equal? (node-parent node) #f))
+                                (and ((listof node?) (node-children node))
+                                     (or (node? (node-suffix-link node))
+                                         (equal? (node-suffix-link node) #f)))))))])
+        (values [result1 (node)
+                         (lambda (node)
+                           (and (node? node)
+                                (and (label? (node-up-label node))
+                                     (and (or (node? (node-parent node))
+                                              (equal? (node-parent node) #f))
+                                          (and ((listof node?) (node-children node))
+                                               (or (node? (node-suffix-link node))
+                                                   (equal? (node-suffix-link node) #f)))))))]
+                [result2 (node)
+                         (or/c #f (and/c integer? positive?))]))]))
 ;; jump-to-suffix: node -> (values node (union boolean number))
 ;;
 ;; Given an internal node, jumps to the suffix from that node.
@@ -63,22 +104,17 @@
 
 ;; If we hit the root, that offset is #f to indicate that we have to
 ;; start searching the suffix from scratch.
-(define/contract (jump-to-suffix node)
-  (->i ([node node?])
-       (values [result1 (node)
-                        node?]
-               [result2 (node)
-                        (or/c boolean? number?)]))
+(define (jump-to-suffix node)
   (define PARENT (node-parent node))
   (cond ((node-root? node)
          (values node #f))
         ((node-suffix-link node)
          (begin 
-                (let ([node2 (node-suffix-link node)])
-                  (unless node2 (error "jump to suffix"))
-                  (values node2 0))))
+           (let ([node2 (node-suffix-link node)])
+             (unless node2 (error "jump to suffix"))
+             (values node2 0))))
         ((and PARENT (node-root? PARENT))
-           (values PARENT #f))
+         (values PARENT #f))
         (else
          (let* ([parent (node-parent node)]
                 [sl (begin (unless parent (error "j2s"))
@@ -87,19 +123,72 @@
            (values sl
                    (label-length (node-up-label node)))))))
 
-(provide try-to-set-suffix-edge!)
+(provide
+ (contract-out
+  [try-to-set-suffix-edge!
+   (->i ([from-node (lambda (node)
+                      (and (node? node)
+                           (and (label? (node-up-label node))
+                                (and (or (node? (node-parent node))
+                                         (equal? (node-parent node) #f))
+                                     (and ((listof node?) (node-children node))
+                                          (or (node? (node-suffix-link node))
+                                              (equal? (node-suffix-link node) #f)))))))]
+         [to-node (lambda (node)
+                    (and (node? node)
+                         (and (label? (node-up-label node))
+                              (and (or (node? (node-parent node))
+                                       (equal? (node-parent node) #f))
+                                   (and ((listof node?) (node-children node))
+                                        (or (node? (node-suffix-link node))
+                                            (equal? (node-suffix-link node) #f)))))))])
+        [result (from-node to-node)
+                void?])]))
 ;; try-to-set-suffix-edge!: node node -> void
 ;;
 ;; Sets the suffix edge of from-node directed to to-node if it
 ;; hasn't been set yet.
 (define (try-to-set-suffix-edge! from-node to-node)
   (when (not (node-suffix-link from-node))
-    
     (set-node-suffix-link! from-node to-node)))
 
 
 
-(provide find-next-extension-point/add-suffix-link!)
+(provide
+ (contract-out
+  [find-next-extension-point/add-suffix-link!
+   (->i ([node (lambda (node)
+                 (and (node? node)
+                      (and (label? (node-up-label node))
+                           (and (or (node? (node-parent node))
+                                    (equal? (node-parent node) #f))
+                                (and ((listof node?) (node-children node))
+                                     (or (node? (node-suffix-link node))
+                                         (equal? (node-suffix-link node) #f)))))))]
+         [label (lambda (label)
+                  (and (label? label)
+                       (and (or (string? (label-datum label))
+                                (vector? (label-datum label)))
+                            (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))]
+         [initial-i (and/c integer? (or/c positive? zero?))]
+         [j (initial-i) (and/c (and/c integer? (or/c positive? zero?)) (>=/c initial-i))])
+        (values [result1 (node label initial-i j)
+                         (lambda (r1)
+                           (or (and (node? r1)
+                                    (and (label? (node-up-label r1))
+                                         (and (or (node? (node-parent r1))
+                                                  (equal? (node-parent r1) #f))
+                                              (and ((listof node?) (node-children r1))
+                                                   (or (node? (node-suffix-link r1))
+                                                       (equal? (node-suffix-link r1) #f))))))
+                               (equal? r1 #f)))]
+                [result2 (node label initial-i j)
+                         (or/c (and/c integer? (or/c positive? zero?))
+                               #f)]
+                [result3 (node label initial-i j)
+                         (or/c (and/c integer? (or/c positive? zero?))
+                               #f)]))]))
 ;; find-next-extension-point/add-suffix-link!: node label number number ->
 ;;     (values node number number)
 ;;
@@ -113,17 +202,7 @@
 ;; done from a splicing extension.
 ;;
 ;; If we run off the label (implicit tree), returns (values #f #f #f).
-(define/contract (find-next-extension-point/add-suffix-link! node label initial-i j)
-  (->i ([node node?]
-        [label label?]
-        [initial-i (and/c integer? (or/c positive? zero?))]
-        [j (and/c integer? (or/c positive? zero?))])
-       (values [result1 (node label initial-i j)
-                        node?]
-               [result2 (node label initial-i j)
-                        (and/c integer? (or/c positive? zero?))]
-               [result3 (node label initial-i j)
-                        (and/c integer? (or/c positive? zero?))]))
+(define (find-next-extension-point/add-suffix-link! node label initial-i j)
   (define (fixed-start suffix-offset)
     (if suffix-offset (- initial-i suffix-offset) j))
 
@@ -178,10 +257,36 @@
       (loop-first initial-i))))
 
 
-(provide extend-at-point!)
+(provide
+ (contract-out
+  [extend-at-point!
+   (-> (lambda (node)
+         (and (node? node)
+              (and (label? (node-up-label node))
+                   (and (or (node? (node-parent node))
+                            (equal? (node-parent node) #f))
+                        (and ((listof node?) (node-children node))
+                             (or (node? (node-suffix-link node))
+                                 (equal? (node-suffix-link node) #f)))))))
+       (and/c integer? positive?)
+       (lambda (label)
+         (and (label? label)
+              (and (or (string? (label-datum label))
+                       (vector? (label-datum label)))
+                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+       (and/c integer? positive?)
+       (lambda (r)
+         (and (node? r)
+              (and (label? (node-up-label r))
+                   (and (or (node? (node-parent r))
+                            (equal? (node-parent r) #f))
+                        (and ((listof node?) (node-children r))
+                             (or (node? (node-suffix-link r))
+                                 (equal? (node-suffix-link r) #f))))))))]))
+
 ;; extend-at-point!: node number label number -> node
-(define/contract extend-at-point!
-  (-> node? number? label? number? node?)
+(define extend-at-point!
   (letrec [
            (main-logic
             (lambda (node offset label i)
@@ -213,12 +318,21 @@
 
 
 
-(provide suffix-tree-add!)
+(provide
+ (contract-out
+  [suffix-tree-add!
+   (-> tree?
+       (lambda (label)
+         (and (label? label)
+              (and (or (string? (label-datum label))
+                       (vector? (label-datum label)))
+                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+       void?)]))
 ;; suffix-tree-add!: tree label -> void
 ;; Adds a new label and its suffixes to the suffix tree.
 ;; Precondition: label is nonempty.
-(define/contract suffix-tree-add!
-  (-> suffix-tree? label? void?)
+(define suffix-tree-add!
   (letrec
       [
        (do-construction!
@@ -298,7 +412,17 @@
 
 ;; -- from suffixtree.rkt
 
-(provide tree-add!)
+(provide
+ (contract-out
+  [tree-add!
+   (-> tree?
+       (lambda (label)
+         (and (label? label)
+              (and (or (string? (label-datum label))
+                       (vector? (label-datum label)))
+                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+       void?)]))
 (define tree-add! suffix-tree-add!)
 
 

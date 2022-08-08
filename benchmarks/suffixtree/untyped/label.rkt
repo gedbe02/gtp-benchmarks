@@ -1,7 +1,9 @@
 #lang racket/base
 
 (require
-  "data.rkt")
+  "data.rkt"
+  "../../../ctcs/precision-config.rkt"
+  "../../../ctcs/common.rkt")
 
 (require racket/contract)
 (require racket/vector)
@@ -31,197 +33,268 @@
 (provide
  (contract-out
   [rename ext:make-label make-label
-          (->i ([label-element (or/c string? vector?)])
-               [result (label-element)
-                       (lambda (result) 
-                         (and (label? result)
-                              (and (= (label-i result) 0)
-                                   (= (label-j result) (cond [(string? label-element) (string-length label-element)]
-                                                             [(vector? label-element) (vector-length label-element)])))))])]
+          (configurable-ctc
+           [max
+            (->i ([label-element (or/c string? vector?)])
+                 [result (label-element)
+                         (lambda (result) 
+                           (and (label? result)
+                                (and (= (label-i result) 0)
+                                     (= (label-j result) (cond [(string? label-element) (string-length label-element)]
+                                                               [(vector? label-element) (vector-length label-element)])))))])]
+           [types
+            (-> (or/c string? vector?) label?)])]
                                        
   [label-element?
-   (->i ([obj any/c])
-        [result (obj)
-                #t])]
+   (configurable-ctc
+    [max
+     (->i ([obj any/c])
+          [result (obj)
+                  #t])]
+    [types
+     (-> any/c boolean?)])]
   [label-element-equal?
-   (->i ([l1 label-element?]
-         [l2 label-element?])
-        [result (l1 l2)
-                boolean?])]
+   (configurable-ctc
+    [max
+     (->i ([l1 label-element?]
+           [l2 label-element?])
+          [result (l1 l2)
+                  boolean?])]
+    [types
+     (-> label-element? label-element? boolean?)])]
   [string->label
-   (->i ([s string?])
-        [result (s)
-                (lambda (result)
-                  (and (label? result)
-                       (and (equal? (label-datum result) s)
-                            (and (= (label-i result) 0)
-                                 (= (label-j result) (string-length s))))))])]
+   (configurable-ctc
+    [max
+     (->i ([s string?])
+          [result (s)
+                  (lambda (result)
+                    (and (label? result)
+                         (and (equal? (label-datum result) s)
+                              (and (= (label-i result) 0)
+                                   (= (label-j result) (string-length s))))))])]
+    [types (-> string? label?)])]
   [string->label/with-sentinel
-   (->i ([s string?])
-        [result (s)
-                (lambda (result)
-                  (and (label? result)
-                       (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
-                            (and (equal? (list->string
-                                          (vector->list
-                                           (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)))) s)
-                                 (and (= (label-i result) 0)
-                                      (= (label-j result) (+ (string-length s) 1)))))))])]
+   (configurable-ctc
+    [max
+     (->i ([s string?])
+          [result (s)
+                  (lambda (result)
+                    (and (label? result)
+                         (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                              (and (equal? (list->string
+                                            (vector->list
+                                             (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)))) s)
+                                   (and (= (label-i result) 0)
+                                        (= (label-j result) (+ (string-length s) 1)))))))])]
+    [types
+     (-> string? label?)])]
   [vector->label
-   (->i ([vector vector?])
-        [result (vector)
-                (lambda (result)
-                  (and (label? result)
-                       (and (equal? (label-datum result) vector)
-                            (and (= (label-i result) 0)
-                                 (= (label-j result) (vector-length vector))))))])]       
+   (configurable-ctc
+    [max
+     (->i ([vector vector?])
+          [result (vector)
+                  (lambda (result)
+                    (and (label? result)
+                         (and (equal? (label-datum result) vector)
+                              (and (= (label-i result) 0)
+                                   (= (label-j result) (vector-length vector))))))])]
+    [types
+     (-> vector? label?)])]
   [vector->label/with-sentinel
-   (->i ([vector vector?])
-        [result (vector)
-                (lambda (result)
-                  (and (label? result)
-                       (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
-                            (and (equal? (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)) vector)
-                                 (and (= (label-i result) 0)
-                                      (= (label-j result) (+ (vector-length vector) 1)))))))])]
+   (configurable-ctc
+    [max
+     (->i ([vector vector?])
+          [result (vector)
+                  (lambda (result)
+                    (and (label? result)
+                         (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                              (and (equal? (vector-take (label-datum result) (- (vector-length (label-datum result)) 1)) vector)
+                                   (and (= (label-i result) 0)
+                                        (= (label-j result) (+ (vector-length vector) 1)))))))])]
+    [types
+     (-> vector? label?)])]
   [label-length
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))])
-        [result (label)
-                (lambda (result)
-                  (and (= (- (label-j label) (label-i label)) result)
-                       (and (integer? result)
-                            (or (positive? result) (zero? result)))))])]
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))])
+          [result (label)
+                  (lambda (result)
+                    (and (= (- (label-j label) (label-i label)) result)
+                         (and (integer? result)
+                              (or (positive? result) (zero? result)))))])]
+    [types
+     (-> number?)])]
   [label-ref
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
-         [k (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
-        [result (label k)
-                (or/c char? symbol?)])]
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
+           [k (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
+          [result (label k)
+                  (or/c char? symbol?)])]
+    [types
+     (-> label? (or/c char? symbol?))])]
   [sublabel
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
-         [n (and/c integer? (or/c positive? zero?))])
-        ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
-        [result (label n num)
-                (lambda (result)
-                  (and (label? result)
-                       (and (vector? (label-datum result))
-                            (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
-                                 (and (and (integer? (label-i result)) (or (positive? (label-i result)) (zero? (label-i result))))
-                                      (and (and (integer? (label-j result)) (or (positive? (label-j result)) (zero? (label-j result))))
-                                           (> (label-j result) (label-i result))))))))])]
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))))))]
+           [n (and/c integer? (or/c positive? zero?))])
+          ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
+          [result (label n num)
+                  (lambda (result)
+                    (and (label? result)
+                         (and (vector? (label-datum result))
+                              (and (symbol? (vector-ref (label-datum result) (- (vector-length (label-datum result)) 1)))
+                                   (and (and (integer? (label-i result)) (or (positive? (label-i result)) (zero? (label-i result))))
+                                        (and (and (integer? (label-j result)) (or (positive? (label-j result)) (zero? (label-j result))))
+                                             (> (label-j result) (label-i result))))))))])]
+    [types
+     (-> label? number? label?)])]
   [sublabel!
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                      (>= (label-j l) (label-i l)))))))]
-         [n (and/c integer? (or/c positive? zero?))])
-        ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
-        [result (label n num)
-                void?])]
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))]
+           [n (and/c integer? (or/c positive? zero?))])
+          ([num (n) (and/c (and/c integer? (or/c positive? zero?)) (>/c n))])
+          [result (label n num)
+                  void?])]
+    [types
+     (-> label? number? void?)])]
   [label-prefix?
-   (->i ([prefix (lambda (l)
-                   (and (label? l)
-                        (and (vector? (label-datum l))
-                             (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                  (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                       (>= (label-j l) (label-i l)))))))]
-         [other-label (lambda (l)
-                        (and (label? l)
-                             (and (vector? (label-datum l))
-                                  (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                       (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                            (>= (label-j l) (label-i l)))))))])
-        [result (prefix other-label)
-                boolean?])]
-  [label-equal?
-   (->i ([l1 (lambda (l)
-               (and (label? l)
-                    (and (vector? (label-datum l))
-                         (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                              (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                   (>= (label-j l) (label-i l)))))))]
-         [l2 (lambda (l)
-               (and (label? l)
-                    (and (vector? (label-datum l))
-                         (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                              (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                   (>= (label-j l) (label-i l)))))))])
-        [result (l1 l2)
-                boolean?])]
-  [label-empty?
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                      (>= (label-j l) (label-i l)))))))])
-        [result (label)
-                boolean?])]
-  [label-copy
-   (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                      (>= (label-j l) (label-i l)))))))])
-        [result (label)
-                (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                      (>= (label-j l) (label-i l)))))))])]
-   [label-ref-at-end?
-    (->i ([label (lambda (l)
-                  (and (label? l)
-                       (and (vector? (label-datum l))
-                            (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                 (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                      (>= (label-j l) (label-i l)))))))]
-          [offset (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
-         [result (label offset)
-                 boolean?])]
-   [label-source-id
-    (->i ([label (lambda (l)
-                   (and (label? l)
-                        (and (vector? (label-datum l))
-                             (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                  (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                       (>= (label-j l) (label-i l)))))))])
-         [result (label)
-                 (and/c integer? (or/c positive? zero?))])]
-   [label-same-source?
-    (->i ([label-1 (lambda (l)
+   (configurable-ctc
+    [max
+     (->i ([prefix (lambda (l)
                      (and (label? l)
                           (and (vector? (label-datum l))
                                (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
                                     (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
                                          (>= (label-j l) (label-i l)))))))]
-          [label-2 (lambda (l)
-                     (and (label? l)
-                          (and (vector? (label-datum l))
-                               (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
-                                    (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
-                                         (>= (label-j l) (label-i l)))))))])
-         [result (label-1 label-2)
-                 boolean?])])
-   ; these aren't used except for debugging
-   label->string
-   label->string/removing-sentinel
-   label->vector)
+           [other-label (lambda (l)
+                          (and (label? l)
+                               (and (vector? (label-datum l))
+                                    (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                         (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                              (>= (label-j l) (label-i l)))))))])
+          [result (prefix other-label)
+                  boolean?])]
+    [types
+     (-> label? label? boolean?)])]
+  [label-equal?
+   (configurable-ctc
+    [max
+     (->i ([l1 (lambda (l)
+                 (and (label? l)
+                      (and (vector? (label-datum l))
+                           (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                     (>= (label-j l) (label-i l)))))))]
+           [l2 (lambda (l)
+                 (and (label? l)
+                      (and (vector? (label-datum l))
+                           (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                     (>= (label-j l) (label-i l)))))))])
+          [result (l1 l2)
+                  boolean?])]
+    [types
+     (-> label? label? boolean?)])]
+  [label-empty?
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))])
+          [result (label)
+                  boolean?])]
+    [types
+     (-> label? boolean?)])]
+  [label-copy
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))])
+          [result (label)
+                  (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))])]
+    [types
+     (-> label? label?)])]
+  [label-ref-at-end?
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))]
+           [offset (label) (and/c (and/c integer? (or/c positive? zero?)) (<=/c (label-j label)))])
+          [result (label offset)
+                  boolean?])]
+    [types
+     (-> label? number? boolean?)])]
+  [label-source-id
+   (configurable-ctc
+    [max
+     (->i ([label (lambda (l)
+                    (and (label? l)
+                         (and (vector? (label-datum l))
+                              (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                   (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                        (>= (label-j l) (label-i l)))))))])
+          [result (label)
+                  (and/c integer? (or/c positive? zero?))])]
+    [types
+     (-> label? number?)])]
+  [label-same-source?
+   (configurable-ctc
+    [max
+     (->i ([label-1 (lambda (l)
+                      (and (label? l)
+                           (and (vector? (label-datum l))
+                                (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                     (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                          (>= (label-j l) (label-i l)))))))]
+           [label-2 (lambda (l)
+                      (and (label? l)
+                           (and (vector? (label-datum l))
+                                (and (and (integer? (label-i l)) (or (positive? (label-i l)) (zero? (label-i l))))
+                                     (and (and (integer? (label-j l)) (or (positive? (label-j l)) (zero? (label-j l))))
+                                          (>= (label-j l) (label-i l)))))))])
+          [result (label-1 label-2)
+                  (and/c boolean (eq? (label-datum label-1) (label-datum label-2)))])]
+    [types
+     (-> label? label? boolean?)])])
+ ; these aren't used except for debugging
+ label->string
+ label->string/removing-sentinel
+ label->vector)
 
 
 ;; make-label: label-element -> label
@@ -233,12 +306,10 @@
          (error 'make-label "Don't know how to make label from ~S" label-element))))
 
 
-(define/contract (make-sentinel)
-  (-> symbol?)
+(define (make-sentinel)
   (gensym 'sentinel))
 
-(define/contract (sentinel? datum)
-  (-> any/c boolean?)
+(define (sentinel? datum)
   (symbol? datum))
 
 ;; vector->label vector
@@ -274,8 +345,7 @@
 ;;
 ;; Note: this label can not be converted in whole back to a string:
 ;; the sentinel character interferes with string concatenation
-(define/contract string->label/with-sentinel
-  (-> string? label?)
+(define string->label/with-sentinel
   (let ((f (compose vector->label/with-sentinel list->vector string->list)))
     (lambda (str) (f str))))
 
@@ -363,10 +433,7 @@
 
 
 ;;;; this isn't used in the program
-(define/contract (label->string label)
-  (->i ([label label?])
-       [result (label)
-               string?])
+(define (label->string label)
   (list->string (vector->list (label->vector label))))
 
 

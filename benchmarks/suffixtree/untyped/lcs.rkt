@@ -9,25 +9,28 @@
 
 (require racket/contract)
 
-(define/contract false-thunk
-  (-> #f)
+(define false-thunk
   (lambda () #f))
 
 
 ;; longest-common-substring: string string -> string
 ;; Returns the longest common substring between the two strings.
-(provide longest-common-substring)
-
-(define (shorter s) ; s1 s2 
-  (define (not-longer t) ; string
-    (< (string-length t) (string-length s)))
-  not-longer)
-       
-(define/contract (longest-common-substring s1 s2)
-  (->i ([s1 string?]
+(provide
+ (contract-out
+  [longest-common-substring
+   (->i ([s1 string?]
         [s2 string?])
         [result (s1 s2)
-                (or/c string? "no lcs")])
+                (lambda (r)
+                  (and (string? r)
+                       (or (and (<= (string-length r) (string-length s1))
+                           (<= (string-length r) (string-length s2)))
+                           (string=? r "no lcs"))))])]))
+                ;(or/c string? "no lcs")])]))
+
+
+       
+(define (longest-common-substring s1 s2)
   (label->string (longest-common-sublabel (string->label/with-sentinel s1)
                                           (string->label/with-sentinel s2))))
 
@@ -42,19 +45,28 @@
 ;; This approach simply adds both labels to a common suffix tree,
 ;; does a postorder traversal to mark up the inner nodes, and then
 ;; finds the inner node with the deepest string depth.
-(provide longest-common-sublabel)
-(define/contract (longest-common-sublabel label-1 label-2)
-  (->i ([label-1 label?]
-        [label-2 label?])
-       [result (label-1 label-2)
-               label?])
+(provide
+ (contract-out
+  [longest-common-sublabel
+   (->i ([label-1 label?]
+         [label-2 label?])
+        [result (label-1 label-2)
+                (lambda (r)
+                  (and (label? r)
+                       (and (or (string? (label-datum r))
+                                (vector? (label-datum r)))
+                            (and (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
+                                 (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0)))
+                                 (>= (label-j r) (label-i r))))))])]))
+                      
+
+(define (longest-common-sublabel label-1 label-2)
   (let ((label-1-marks (make-hasheq))
         (label-2-marks (make-hasheq))
         (deepest-node (node (make-label "no lcs") #f '() #f))
         (deepest-depth 0))
     (letrec
-        [
-         (main
+        [(main
           (lambda ()
             (let ((tree (make-tree)))
               (tree-add! tree label-1)
@@ -133,9 +145,27 @@
 ;; rope data structure might be better...  I need to read Hans
 ;; Boehm's paper on "Ropes, an alternative to strings" to see how
 ;; much work this would be.
-(provide path-label)
-(define/contract path-label
-  (-> node? label?)
+(provide
+ (contract-out
+  [path-label
+   (->i ([node (lambda (n)
+                 (and (node? n)
+                      (and (label? (node-up-label n))
+                      (and (or (node? (node-parent n))
+                               (equal? (node-parent n) #f))
+                           (and ((listof node?) (node-children n))
+                                (or (node? (node-suffix-link n))
+                                    (equal? (node-suffix-link n) #f)))))))])
+                       [result (node)
+                               (lambda (r)
+                                 (and (label? r)
+                                      (and (or (string? (label-datum r))
+                                               (vector? (label-datum r)))
+                                           (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
+                                                (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0))))))])]))
+                            
+
+(define path-label
   (letrec
       [(collect-loop
         (lambda (current-node collected-labels total-length)
