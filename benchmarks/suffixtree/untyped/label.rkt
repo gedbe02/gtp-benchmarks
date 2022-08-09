@@ -471,7 +471,6 @@
 
 ;; label-ref-at-end?: label number -> boolean
 (define (label-ref-at-end? label offset)
-  ;(displayln (format "i:~a j:~a offset:~a" (label-i label) (label-j label) offset))
   (= offset (label-length label)))
 
 

@@ -2,10 +2,12 @@
 ;; Some utilities.
 
 (require
- (except-in "data.rkt" make-label)
- "label.rkt"
- "structs.rkt"
- "ukkonen.rkt")
+  (except-in "data.rkt" make-label)
+  "label.rkt"
+  "structs.rkt"
+  "ukkonen.rkt"
+  "../../../ctcs/precision-config.rkt"
+  "../../../ctcs/common.rkt")
 
 (require racket/contract)
 
@@ -18,15 +20,18 @@
 (provide
  (contract-out
   [longest-common-substring
-   (->i ([s1 string?]
-        [s2 string?])
-        [result (s1 s2)
-                (lambda (r)
-                  (and (string? r)
-                       (or (and (<= (string-length r) (string-length s1))
-                           (<= (string-length r) (string-length s2)))
-                           (string=? r "no lcs"))))])]))
-                ;(or/c string? "no lcs")])]))
+   (configurable-ctc
+    [max
+     (->i ([s1 string?]
+           [s2 string?])
+          [result (s1 s2)
+                  (lambda (r)
+                    (and (string? r)
+                         (or (and (<= (string-length r) (string-length s1))
+                                  (<= (string-length r) (string-length s2)))
+                             (string=? r "no lcs"))))])]
+    [types
+     (-> string? string? string?)])]))
 
 
        
@@ -48,16 +53,20 @@
 (provide
  (contract-out
   [longest-common-sublabel
-   (->i ([label-1 label?]
-         [label-2 label?])
-        [result (label-1 label-2)
-                (lambda (r)
-                  (and (label? r)
-                       (and (or (string? (label-datum r))
-                                (vector? (label-datum r)))
-                            (and (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
-                                 (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0)))
-                                 (>= (label-j r) (label-i r))))))])]))
+   (configurable-ctc
+    [max
+     (->i ([label-1 label?]
+           [label-2 label?])
+          [result (label-1 label-2)
+                  (lambda (r)
+                    (and (label? r)
+                         (and (or (string? (label-datum r))
+                                  (vector? (label-datum r)))
+                              (and (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
+                                        (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0)))
+                                   (>= (label-j r) (label-i r))))))])]
+    [types
+     (-> label? label? label?)])]))
                       
 
 (define (longest-common-sublabel label-1 label-2)
@@ -148,21 +157,25 @@
 (provide
  (contract-out
   [path-label
-   (->i ([node (lambda (n)
-                 (and (node? n)
-                      (and (label? (node-up-label n))
-                      (and (or (node? (node-parent n))
-                               (equal? (node-parent n) #f))
-                           (and ((listof node?) (node-children n))
-                                (or (node? (node-suffix-link n))
-                                    (equal? (node-suffix-link n) #f)))))))])
-                       [result (node)
-                               (lambda (r)
-                                 (and (label? r)
-                                      (and (or (string? (label-datum r))
-                                               (vector? (label-datum r)))
-                                           (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
-                                                (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0))))))])]))
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (n)
+                   (and (node? n)
+                        (and (label? (node-up-label n))
+                             (and (or (node? (node-parent n))
+                                      (equal? (node-parent n) #f))
+                                  (and ((listof node?) (node-children n))
+                                       (or (node? (node-suffix-link n))
+                                           (equal? (node-suffix-link n) #f)))))))])
+          [result (node)
+                  (lambda (r)
+                    (and (label? r)
+                         (and (or (string? (label-datum r))
+                                  (vector? (label-datum r)))
+                              (and (integer? (label-i r)) (or (positive? (label-i r)) (= (label-i r) 0))
+                                   (integer? (label-j r)) (or (positive? (label-j r)) (= (label-j r) 0))))))])]
+    [types
+     (-> node? label?)])]))
                             
 
 (define path-label

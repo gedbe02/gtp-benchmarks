@@ -5,8 +5,10 @@
 ;; biology.
 
 (require "structs.rkt"
-  (except-in "data.rkt" make-label)
-  "label.rkt")
+         (except-in "data.rkt" make-label)
+         "label.rkt"
+         "../../../ctcs/precision-config.rkt"
+         "../../../ctcs/common.rkt")
 
 (require racket/contract)
 
@@ -16,32 +18,36 @@
 (provide
  (contract-out
   [skip-count
-   (->i ([node (lambda (node)
-                 (and (node? node)
-                      (and (label? (node-up-label node))
-                           (and (or (node? (node-parent node))
-                                    (equal? (node-parent node) #f))
-                                (and ((listof node?) (node-children node))
-                                     (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))]
-         [label (lambda (label)
-                  (and (label? label)
-                       (and (or (string? (label-datum label))
-                                (vector? (label-datum label)))
-                            (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
-        (values [result1 (node label) (lambda (node)
-                                        (and (node? node)
-                                             (and (label? (node-up-label node))
-                                                  (and (or (node? (node-parent node))
-                                                           (equal? (node-parent node) #f))
-                                                       (and ((listof node?) (node-children node))
-                                                            (or (node? (node-suffix-link node))
-                                                                (equal? (node-suffix-link node) #f)))))))]
-                [result2 (node label) (lambda (r2)
-                                        (and (and (integer? r2)
-                                                  (or (positive? r2) (zero? r2)))
-                                             (= (length (node-up-label node)) r2)))]))]))
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (node)
+                   (and (node? node)
+                        (and (label? (node-up-label node))
+                             (and (or (node? (node-parent node))
+                                      (equal? (node-parent node) #f))
+                                  (and ((listof node?) (node-children node))
+                                       (or (node? (node-suffix-link node))
+                                           (equal? (node-suffix-link node) #f)))))))]
+           [label (lambda (label)
+                    (and (label? label)
+                         (and (or (string? (label-datum label))
+                                  (vector? (label-datum label)))
+                              (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                   (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
+          (values [result1 (node label) (lambda (node)
+                                          (and (node? node)
+                                               (and (label? (node-up-label node))
+                                                    (and (or (node? (node-parent node))
+                                                             (equal? (node-parent node) #f))
+                                                         (and ((listof node?) (node-children node))
+                                                              (or (node? (node-suffix-link node))
+                                                                  (equal? (node-suffix-link node) #f)))))))]
+                  [result2 (node label) (lambda (r2)
+                                          (and (and (integer? r2)
+                                                    (or (positive? r2) (zero? r2)))
+                                               (= (length (node-up-label node)) r2)))]))]
+    [types
+     (-> node? label? (values node? number?))])]))
 ;; skip-count: node label -> (values node number)
 ;;
 ;; Follows down the node using the skip-count rule until we exhaust
@@ -67,14 +73,11 @@
       (values node (label-length (node-up-label node)))
       (loop node k)))
 
-
-
-
-
-
 (provide
  (contract-out
   [jump-to-suffix
+   (configurable-ctc
+    [max
    (->i ([node (lambda (node)
                  (and (node? node)
                       (and (label? (node-up-label node))
@@ -93,7 +96,9 @@
                                                (or (node? (node-suffix-link node))
                                                    (equal? (node-suffix-link node) #f)))))))]
                 [result2 (node)
-                         (or/c #f (and/c integer? positive?))]))]))
+                         (or/c #f (and/c integer? positive?))]))]
+    [types
+     (-> node? (values node? number?))])]))
 ;; jump-to-suffix: node -> (values node (union boolean number))
 ;;
 ;; Given an internal node, jumps to the suffix from that node.
@@ -126,24 +131,28 @@
 (provide
  (contract-out
   [try-to-set-suffix-edge!
-   (->i ([from-node (lambda (node)
+   (configurable-ctc
+    [max
+     (->i ([from-node (lambda (node)
+                        (and (node? node)
+                             (and (label? (node-up-label node))
+                                  (and (or (node? (node-parent node))
+                                           (equal? (node-parent node) #f))
+                                       (and ((listof node?) (node-children node))
+                                            (or (node? (node-suffix-link node))
+                                                (equal? (node-suffix-link node) #f)))))))]
+           [to-node (lambda (node)
                       (and (node? node)
                            (and (label? (node-up-label node))
                                 (and (or (node? (node-parent node))
                                          (equal? (node-parent node) #f))
                                      (and ((listof node?) (node-children node))
                                           (or (node? (node-suffix-link node))
-                                              (equal? (node-suffix-link node) #f)))))))]
-         [to-node (lambda (node)
-                    (and (node? node)
-                         (and (label? (node-up-label node))
-                              (and (or (node? (node-parent node))
-                                       (equal? (node-parent node) #f))
-                                   (and ((listof node?) (node-children node))
-                                        (or (node? (node-suffix-link node))
-                                            (equal? (node-suffix-link node) #f)))))))])
-        [result (from-node to-node)
-                void?])]))
+                                              (equal? (node-suffix-link node) #f)))))))])
+          [result (from-node to-node)
+                  void?])]
+    [types
+     (-> node? node? void?)])]))
 ;; try-to-set-suffix-edge!: node node -> void
 ;;
 ;; Sets the suffix edge of from-node directed to to-node if it
@@ -157,38 +166,42 @@
 (provide
  (contract-out
   [find-next-extension-point/add-suffix-link!
-   (->i ([node (lambda (node)
-                 (and (node? node)
-                      (and (label? (node-up-label node))
-                           (and (or (node? (node-parent node))
-                                    (equal? (node-parent node) #f))
-                                (and ((listof node?) (node-children node))
-                                     (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))]
-         [label (lambda (label)
-                  (and (label? label)
-                       (and (or (string? (label-datum label))
-                                (vector? (label-datum label)))
-                            (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))]
-         [initial-i (and/c integer? (or/c positive? zero?))]
-         [j (initial-i) (and/c (and/c integer? (or/c positive? zero?)) (>=/c initial-i))])
-        (values [result1 (node label initial-i j)
-                         (lambda (r1)
-                           (or (and (node? r1)
-                                    (and (label? (node-up-label r1))
-                                         (and (or (node? (node-parent r1))
-                                                  (equal? (node-parent r1) #f))
-                                              (and ((listof node?) (node-children r1))
-                                                   (or (node? (node-suffix-link r1))
-                                                       (equal? (node-suffix-link r1) #f))))))
-                               (equal? r1 #f)))]
-                [result2 (node label initial-i j)
-                         (or/c (and/c integer? (or/c positive? zero?))
-                               #f)]
-                [result3 (node label initial-i j)
-                         (or/c (and/c integer? (or/c positive? zero?))
-                               #f)]))]))
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (node)
+                   (and (node? node)
+                        (and (label? (node-up-label node))
+                             (and (or (node? (node-parent node))
+                                      (equal? (node-parent node) #f))
+                                  (and ((listof node?) (node-children node))
+                                       (or (node? (node-suffix-link node))
+                                           (equal? (node-suffix-link node) #f)))))))]
+           [label (lambda (label)
+                    (and (label? label)
+                         (and (or (string? (label-datum label))
+                                  (vector? (label-datum label)))
+                              (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                   (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))]
+           [initial-i (and/c integer? (or/c positive? zero?))]
+           [j (initial-i) (and/c (and/c integer? (or/c positive? zero?)) (>=/c initial-i))])
+          (values [result1 (node label initial-i j)
+                           (lambda (r1)
+                             (or (and (node? r1)
+                                      (and (label? (node-up-label r1))
+                                           (and (or (node? (node-parent r1))
+                                                    (equal? (node-parent r1) #f))
+                                                (and ((listof node?) (node-children r1))
+                                                     (or (node? (node-suffix-link r1))
+                                                         (equal? (node-suffix-link r1) #f))))))
+                                 (equal? r1 #f)))]
+                  [result2 (node label initial-i j)
+                           (or/c (and/c integer? (or/c positive? zero?))
+                                 #f)]
+                  [result3 (node label initial-i j)
+                           (or/c (and/c integer? (or/c positive? zero?))
+                                 #f)]))]
+    [types
+     (-> node? label? number? number? (values node? number? number?))])]))
 ;; find-next-extension-point/add-suffix-link!: node label number number ->
 ;;     (values node number number)
 ;;
@@ -260,6 +273,8 @@
 (provide
  (contract-out
   [extend-at-point!
+   (configurable-ctc
+    [max
    (-> (lambda (node)
          (and (node? node)
               (and (label? (node-up-label node))
@@ -283,7 +298,9 @@
                             (equal? (node-parent r) #f))
                         (and ((listof node?) (node-children r))
                              (or (node? (node-suffix-link r))
-                                 (equal? (node-suffix-link r) #f))))))))]))
+                                 (equal? (node-suffix-link r) #f))))))))]
+  [types
+   (-> node? number? label? number? node?)])]))
 
 ;; extend-at-point!: node number label number -> node
 (define extend-at-point!
@@ -321,14 +338,18 @@
 (provide
  (contract-out
   [suffix-tree-add!
-   (-> tree?
-       (lambda (label)
-         (and (label? label)
-              (and (or (string? (label-datum label))
-                       (vector? (label-datum label)))
-                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
-       void?)]))
+   (configurable-ctc
+    [max
+     (-> tree?
+         (lambda (label)
+           (and (label? label)
+                (and (or (string? (label-datum label))
+                         (vector? (label-datum label)))
+                     (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                          (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+         void?)]
+    [types
+     (-> label? void?)])]))
 ;; suffix-tree-add!: tree label -> void
 ;; Adds a new label and its suffixes to the suffix tree.
 ;; Precondition: label is nonempty.
@@ -415,14 +436,19 @@
 (provide
  (contract-out
   [tree-add!
-   (-> tree?
-       (lambda (label)
-         (and (label? label)
-              (and (or (string? (label-datum label))
-                       (vector? (label-datum label)))
-                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
-       void?)]))
+   (configurable-ctc
+    [max
+     (-> tree?
+         (lambda (label)
+           (and (label? label)
+                (and (or (string? (label-datum label))
+                         (vector? (label-datum label)))
+                     (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                          (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+         void?)]
+
+    [types
+     (-> tree? label? void?)])]))
 (define tree-add! suffix-tree-add!)
 
 

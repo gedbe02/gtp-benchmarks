@@ -5,44 +5,68 @@
 (require racket/contract)
 
 (require "label.rkt"
-         (except-in "data.rkt" make-label))
+         (except-in "data.rkt" make-label)
+         "../../../ctcs/precision-config.rkt"
+         "../../../ctcs/common.rkt")
 
 (provide
  (contract-out
   [tree?
-   (-> any/c boolean?)]
+   (configurable-ctc
+    [max
+     (->i ([tree any/c])
+          [result (tree) (lambda (r)
+                           (or (and (equal? r #t)
+                                    (and (node? (suffix-tree-root tree))
+                                         (suffix-tree? tree)))
+                               (equal? r #f)))])]
+    [types
+     (-> any/c boolean?)])]
   [make-tree
-   (->i ()
-        [result ()
-                (lambda (r)
-                  (and (tree? r)
-                       (and (node? (tree-root r))
-                            (and (and (vector? (label-datum (node-up-label (suffix-tree-root r))))
-                                      (equal? (make-vector 0) (label-datum (node-up-label (suffix-tree-root r)))))
-                                 (and (equal? (node-parent (suffix-tree-root r)) #f)
-                                      (and (equal? (node-children (suffix-tree-root r)) (list))
-                                           (equal? (node-suffix-link (suffix-tree-root r)) #f)))))))])]
-                                         
+   (configurable-ctc
+    [max
+     (->i ()
+          [result ()
+                  (lambda (r)
+                    (and (tree? r)
+                         (and (node? (tree-root r))
+                              (and (and (vector? (label-datum (node-up-label (suffix-tree-root r))))
+                                        (equal? (make-vector 0) (label-datum (node-up-label (suffix-tree-root r)))))
+                                   (and (equal? (node-parent (suffix-tree-root r)) #f)
+                                        (and (equal? (node-children (suffix-tree-root r)) (list))
+                                             (equal? (node-suffix-link (suffix-tree-root r)) #f)))))))])]
+    [types
+     (-> tree?)])]                         
   [tree-root
-   (->i ([tree (lambda (tree)
-                 (and (tree? tree)
-                      (node? (suffix-tree-root tree))))])
-        [result (tree)
-                (lambda (r)
-                  (and (node? r)
-                       (equal? (suffix-tree-root tree) r)))])]
+   (configurable-ctc
+    [max
+     (->i ([tree (lambda (tree)
+                   (and (tree? tree)
+                        (node? (suffix-tree-root tree))))])
+          [result (tree)
+                  (lambda (r)
+                    (and (node? r)
+                         (equal? (suffix-tree-root tree) r)))])]
+    [types
+     (-> tree? node?)])]
   [new-suffix-tree
-   (->i ()
-        [result ()
-                (lambda (r)
-                  (and (tree? r)
-                       (and (node? (suffix-tree-root r))
-                            (and (label? (node-up-label (suffix-tree-root r)))
-                                 (and (equal? (node-up-label (suffix-tree-root r)) (make-label (make-vector 0)))
-                                      (and (equal? (node-parent (suffix-tree-root r)) #f)
-                                           (and (equal? (node-children (suffix-tree-root r)) (list))
-                                                (equal? (node-suffix-link (suffix-tree-root r)) #f))))))))])]
+   (configurable-ctc
+    [max
+     (->i ()
+          [result ()
+                  (lambda (r)
+                    (and (tree? r)
+                         (and (node? (suffix-tree-root r))
+                              (and (label? (node-up-label (suffix-tree-root r)))
+                                   (and (equal? (node-up-label (suffix-tree-root r)) (make-label (make-vector 0)))
+                                        (and (equal? (node-parent (suffix-tree-root r)) #f)
+                                             (and (equal? (node-children (suffix-tree-root r)) (list))
+                                                  (equal? (node-suffix-link (suffix-tree-root r)) #f))))))))])]
+    [types
+     (-> tree?)])]
   [node-find-child
+   (configurable-ctc
+    [max
    (->i ([node (lambda (node)
                  (and (node? node)
                       (and (label? (node-up-label node))
@@ -56,19 +80,30 @@
                 (lambda (r)
                   (or (node? r)
                       (equal? r #f)))])]
+    [types
+     (-> node? label-element? (or/c node? boolean?))])]
   [node-root?
-   (->i ([node (lambda (node)
-                 (and (node? node)
-                      (and (label? (node-up-label node))
-                           (and (or (node? (node-parent node))
-                                    (equal? (node-parent node) #f))
-                                (and ((listof node?) (node-children node))
-                                     (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))])
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (node)
+                   (and (node? node)
+                        (and (label? (node-up-label node))
+                             (and (or (node? (node-parent node))
+                                      (equal? (node-parent node) #f))
+                                  (and ((listof node?) (node-children node))
+                                       (or (node? (node-suffix-link node))
+                                           (equal? (node-suffix-link node) #f)))))))])
                      
-        [result (node)
-                boolean?])]
+          [result (node)
+                  (lambda (r)
+                    (or (equal? r #t)
+                        (and (equal? r #f)
+                             (eq? #f (node-parent node)))))])]
+    [types
+     (-> node? boolean?)])]
   [node-position-at-end?
+   (configurable-ctc
+    [max
    (->i ([node (lambda (node)
                  (and (node? node)
                       (and (label? (node-up-label node))
@@ -78,65 +113,81 @@
                                      (or (node? (node-suffix-link node))
                                          (equal? (node-suffix-link node) #f)))))))]
          [offset (and/c integer? (or/c positive? zero?))])
-        [result (node offset)
-                boolean?])]
+        [result (node offset
+                      (lambda (r)
+                        (or (and (equal? r #t)
+                                 (= offset (label-length label)))
+                            (and (equal? r #f)
+                                 (not (= offset (label-length label)))))))])]
+    [types
+     (-> node? boolean?)])]
   [node-add-leaf!
-   (->i ([node (lambda (node)
-                 (and (node? node)
-                      (and (label? (node-up-label node))
-                           (and (or (node? (node-parent node))
-                                    (equal? (node-parent node) #f))
-                                (and ((listof node?) (node-children node))
-                                     (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))]
-         [label (lambda (label)
-                  (and (label? label)
-                       (and (or (string? (label-datum label))
-                                (vector? (label-datum label)))
-                            (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
-        [result (node label)
-                (lambda (r)
-                  (and (node? r)
-                       (and (label? (node-up-label r))
-                            (and (or (node? (node-parent r))
-                                     (equal? (node-parent r) #f))
-                                 (and ((listof node?) (node-children r))
-                                      (and (or (node? (node-suffix-link r))
-                                               (equal? (node-suffix-link r) #f))))))))])]
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (node)
+                   (and (node? node)
+                        (and (label? (node-up-label node))
+                             (and (or (node? (node-parent node))
+                                      (equal? (node-parent node) #f))
+                                  (and ((listof node?) (node-children node))
+                                       (or (node? (node-suffix-link node))
+                                           (equal? (node-suffix-link node) #f)))))))]
+           [label (lambda (label)
+                    (and (label? label)
+                         (and (or (string? (label-datum label))
+                                  (vector? (label-datum label)))
+                              (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                   (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
+          [result (node label)
+                  (lambda (r)
+                    (and (node? r)
+                         (and (label? (node-up-label r))
+                              (and (or (node? (node-parent r))
+                                       (equal? (node-parent r) #f))
+                                   (and ((listof node?) (node-children r))
+                                        (and (or (node? (node-suffix-link r))
+                                                 (equal? (node-suffix-link r) #f))))))))])]
+    [types
+     (-> node? label? node?)])]
   [node-up-splice-leaf!
-   (->i ([node (lambda (node)
-                 (and (node? node)
-                      (and (label? (node-up-label node))
-                           (and (or (node? (node-parent node))
-                                    (equal? (node-parent node) #f))
-                                (and ((listof node?) (node-children node))
-                                     (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))]
-         [offset (and/c integer? (or/c positive? zero?))]
-         [leaf-label (lambda (label)
-                       (and (label? label)
-                            (and (or (string? (label-datum label))
-                                     (vector? (label-datum label)))
-                                 (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                                      (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
-        (values [result1 (node offset leaf-label) (lambda (r1)
-                                                    (and (node? r1)
-                                                         (and (label? (node-up-label r1))
-                                                              (and (or (node? (node-parent r1))
-                                                                       (equal? (node-parent r1) #f))
-                                                                   (and ((listof node?) (node-children r1))
-                                                                        (or (node? (node-suffix-link r1))
-                                                                            (equal? (node-suffix-link r1) #f)))))))]
-                [result2 (node offset leaf-label) (lambda (r2)
-                                                    (and (node? r2)
-                                                         (and (label? (node-up-label r2))
-                                                              (and (or (node? (node-parent r2))
-                                                                       (equal? (node-parent r2) #f))
-                                                                   (and ((listof node?) (node-children r2))
-                                                                        (or (node? (node-suffix-link r2))
-                                                                            (equal? (node-suffix-link r2) #f)))))))]))]
+   (configurable-ctc
+    [max
+     (->i ([node (lambda (node)
+                   (and (node? node)
+                        (and (label? (node-up-label node))
+                             (and (or (node? (node-parent node))
+                                      (equal? (node-parent node) #f))
+                                  (and ((listof node?) (node-children node))
+                                       (or (node? (node-suffix-link node))
+                                           (equal? (node-suffix-link node) #f)))))))]
+           [offset (and/c integer? (or/c positive? zero?))]
+           [leaf-label (lambda (label)
+                         (and (label? label)
+                              (and (or (string? (label-datum label))
+                                       (vector? (label-datum label)))
+                                   (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
+                                        (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))])
+          (values [result1 (node offset leaf-label) (lambda (r1)
+                                                      (and (node? r1)
+                                                           (and (label? (node-up-label r1))
+                                                                (and (or (node? (node-parent r1))
+                                                                         (equal? (node-parent r1) #f))
+                                                                     (and ((listof node?) (node-children r1))
+                                                                          (or (node? (node-suffix-link r1))
+                                                                              (equal? (node-suffix-link r1) #f)))))))]
+                  [result2 (node offset leaf-label) (lambda (r2)
+                                                      (and (node? r2)
+                                                           (and (label? (node-up-label r2))
+                                                                (and (or (node? (node-parent r2))
+                                                                         (equal? (node-parent r2) #f))
+                                                                     (and ((listof node?) (node-children r2))
+                                                                          (or (node? (node-suffix-link r2))
+                                                                              (equal? (node-suffix-link r2) #f)))))))]))]
+    [types
+     (-> node? number? label? (values node? node?))])]
   [node-follow/k
+   (configurable-ctc
+    [max
    (->i ([node (lambda (node)
                  (and (node? node)
                       (and (label? (node-up-label node))
@@ -209,7 +260,12 @@
                 (and/c integer? (or/c positive? zero?))
                 any/c)])
         [result (node label A B C D)
-                any/c])]))
+                (or/c A
+                      B
+                      C
+                      D)])]
+    [types
+     (-> node? label? (-> node?) (-> node? number?) (-> node? label? number?) (-> node? number? label? number?) any/c)])]))
 
 
 ;; new-suffix-tree: void -> suffix-tree

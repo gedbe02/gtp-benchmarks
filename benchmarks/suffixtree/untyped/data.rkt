@@ -1,9 +1,9 @@
 #lang racket/base
 
 (provide
-  (struct-out label)
-  (struct-out suffix-tree)
-  (struct-out node))
+ (struct-out label)
+ (struct-out suffix-tree)
+ (struct-out node))
 
 ;datum (or string vector)
 ;(= i (number and (</c j)))
