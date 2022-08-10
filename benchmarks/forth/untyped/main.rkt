@@ -1,8 +1,8 @@
 #lang racket
 
 (require (only-in "eval.rkt"
-  forth-eval*
-))
+                  forth-eval*
+                  ))
 (require (only-in racket/file file->lines)
          "../../../ctcs/precision-config.rkt"
          racket/contract
@@ -10,26 +10,16 @@
 
 ;; =============================================================================
 
-(define/contract LOOPS
-  (configurable-ctc
-   [max 1]
-   [types natural?])
+(define LOOPS
   1)
 
-(define/contract (main lines)
-  (configurable-ctc
-   [max (-> (listof string?) void?)]
-   [types (-> (listof string?) void?)])
+(define (main lines)
 
   (for ((i (in-range LOOPS)))
     (define-values [_e _s] (forth-eval* lines))
     (void)))
 
-(define/contract lines
-  (configurable-ctc
-   [max (listof string?)]
-   [types (listof string?)])
-
+(define lines
   (file->lines "../base/history-100.txt"))
 
 (time (main lines))
