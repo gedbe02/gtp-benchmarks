@@ -3,58 +3,18 @@
 
 (provide
  (contract-out
-  [empty-cell%
-   (configurable-ctc
-    [max (make-cell%/c-with self
-                            (or/c #\space
-                                  (send (get-field occupant self)
-                                        show))
-                            (not/c equal?))]
-    [types cell%/c])]
-  [void-cell%
-   (configurable-ctc
-    [max (make-cell%/c-with self #\. equal?)]
-    [types cell%/c])]
-  [door%
-   (configurable-ctc
-    [max (make-cell%/c-with self #\* (not/c equal?))]
-    [types cell%/c])]
-  [vertical-door%
-   (configurable-ctc
-    [max (make-cell%/c-with self
-                            (or/c #\_
-                                  (send (get-field occupant self)
-                                        show))
-                            (not/c equal?))]
-    [types cell%/c])]
-  [horizontal-door%
-   (configurable-ctc
-    [max (make-cell%/c-with self
-                            (or/c #\'
-                                  (send (get-field occupant self)
-                                        show))
-                            (not/c equal?))]
-    [types cell%/c])]
-  [char->cell%
-   (configurable-ctc
-    [max (->i ([char (and/c char? (curry dict-has-key? chars->cell%s))])
-              [result (char)
-                      (and/c cell%/c
-                             (curry class-equal? (dict-ref chars->cell%s char)))])]
-    [types (char? . -> . cell%?)])]
-  [wall%
-   (configurable-ctc
-    [max (make-cell%/c-with self #\X equal?)]
-    [types cell%/c])])
- ;void-cell%
+ empty-cell%
+ void-cell%
+ door%
+ vertical-door%
+ horizontal-door%
+ char->cell%
+ wall%
+ void-cell%
  cell%?
  cell%/c
  class-equal?
- (contract-out
-  [cell%
-   (configurable-ctc
-    [max (make-cell%/c-with self #\* equal?)]
-    [types cell%/c])])
+ cell%
  )
 
 ;; -----------------------------------------------------------------------------

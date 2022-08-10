@@ -8,23 +8,23 @@
  (contract-out
   [enqueue-message!
    (configurable-ctc
-    [max (let ([pre/queue-len #f]
-               [pre/queue message-queue])
-           (->i ([m string?])
-                #:pre () (begin (set! pre/queue-len (length message-queue))
-                                (set! pre/queue-len message-queue))
-                [result void?]
-                #:post (m) (and (equal? pre/queue (rest message-queue))
-                                (= (length message-queue)
-                                   (add1 pre/queue-len))
-                                (string=? m (first message-queue)))))]
-    [types (string? . -> . void?)])]
+   [max (let ([pre/queue-len #f]
+              [pre/queue message-queue])
+          (->i ([m string?])
+               #:pre () (begin (set! pre/queue-len (length message-queue))
+                               (set! pre/queue-len message-queue))
+               [result void?]
+               #:post (m) (and (equal? pre/queue (rest message-queue))
+                               (= (length message-queue)
+                                  (add1 pre/queue-len))
+                               (string=? m (first message-queue)))))]
+   [types (string? . -> . void?)])]
   [reset-message-queue!
    (configurable-ctc
-    [max (->* () ()
-              void?
-              #:post (empty? message-queue))]
-    [types (-> void?)])])
+   [max (->* () ()
+             void?
+             #:post (empty? message-queue))]
+   [types (-> void?)])])
 )
 
 

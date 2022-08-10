@@ -4,45 +4,31 @@
  (contract-out
   [article
    (configurable-ctc
-    [max (->* (boolean? boolean?)
-              [#:an? boolean?]
-              (apply or/c (list+titlecases "the" "an" "a")))]
-    [types (->* (boolean? boolean?)
-                [#:an? boolean?]
-                string?)])]
+   [max (->* (boolean? boolean?)
+             [#:an? boolean?]
+             (apply or/c (list+titlecases "the" "an" "a")))]
+   [types (->* (boolean? boolean?)
+               [#:an? boolean?]
+               string?)])]
   [random-between
    (configurable-ctc
-    [max (->i ([min exact-nonnegative-integer?]
-               [max (min) (and/c exact-nonnegative-integer?
-                                 (>/c min))])
-              [result (min max) (random-result-between/c min max)])]
-    [types (exact-nonnegative-integer? exact-nonnegative-integer?
-                                       . -> . exact-nonnegative-integer?)])]
+   [max (->i ([min exact-nonnegative-integer?]
+              [max (min) (and/c exact-nonnegative-integer?
+                                (>/c min))])
+             [result (min max) (random-result-between/c min max)])]
+   [types (exact-nonnegative-integer? exact-nonnegative-integer?
+                                      . -> . exact-nonnegative-integer?)])]
   [d6
    (configurable-ctc
-    [max (-> (random-result-between/c 1 7))]
-    [types (-> exact-nonnegative-integer?)])]
+   [max (-> (random-result-between/c 1 7))]
+   [types (-> exact-nonnegative-integer?)])]
   [d20
    (configurable-ctc
-    [max (-> (random-result-between/c 1 21))]
-    [types (-> exact-nonnegative-integer?)])]
-  [random-from
-   (configurable-ctc
-    [max (->i ([l (listof any/c)])
-              [result (l) (memberof/c l)])]
-    [types ((listof any/c) . -> . any/c)])]
-  [random
-   (configurable-ctc
-    [max (->i ([n exact-nonnegative-integer?])
-              [result (n) (and/c exact-nonnegative-integer?
-                                 (</c n))])]
-    [types (any/c . -> . exact-nonnegative-integer?)])]
-  [reset!
-   (configurable-ctc
-    [max (->* ()
-              void?
-              #:post (equal? (unbox r*) orig))]
-    [types (-> void?)])])
+   [max (-> (random-result-between/c 1 21))]
+   [types (-> exact-nonnegative-integer?)])
+  random-from
+  random
+  reset!
   random-result-between/c
 )
 
