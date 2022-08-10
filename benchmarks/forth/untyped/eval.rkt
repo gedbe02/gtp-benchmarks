@@ -1,6 +1,12 @@
 #lang racket
 
-(provide forth-eval*)
+(provide
+ (contract-out
+  [forth-eval*
+   (configurable-ctc
+    ;; lltodo: not sure if this can (reasonably) be more precise?
+    [max ((listof string?) . -> . (values env? stack?))]
+    [types ((listof string?) . -> . (values env? stack?))])]))
 
 ;; -----------------------------------------------------------------------------
 

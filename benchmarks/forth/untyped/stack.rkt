@@ -15,6 +15,7 @@
 ;;  data definition & operations
 
 (provide
+ (contract-out
   ;; type Stack = List
   ;;
   ;; Notation:
@@ -24,32 +25,72 @@
   ;; Operations will raise an exception with message "empty stack"
   ;;  if called on a stack with too few elements.
 
-  stack-drop
+  [stack-drop
+   (configurable-ctc
+    [max (->i ([S non-empty-stack?])
+              [result (S) (equal?/c (rest S))])]
+    [types (stack? . -> . stack?)])]
   ;; (-> x::xs xs)
   ;; Drop the item on top of the stack
 
-  stack-dup
+  [stack-dup
+   (configurable-ctc
+    [max (->i ([S non-empty-stack?])
+              [result (S) (equal?/c (cons (first S) S))])]
+    [types (stack? . -> . stack?)])]
   ;; (-> x::xs x::x::xs)
   ;; Duplicate the item on top of the stack
 
-  stack-init
+  [stack-init
+   (configurable-ctc
+    [max (-> (and/c stack? empty?))]
+    [types (-> stack?)])]
   ;; (-> Stack)
   ;; Initialize an empty stack
 
-  stack-over
+  [stack-over
+   (configurable-ctc
+    [max (->i ([S (stack-with-min-size/c 2)])
+              [result (S)
+                      (equal?/c
+                       (cons (first S)
+                             (cons (second S)
+                                   (cons (first S)
+                                         (rest (rest S))))))])]
+    [types (stack? . -> . stack?)])]
   ;; (-> x::y::xs x::y::x::xs)
   ;; Duplicate the item on top of the stack, but place the duplicate
   ;;  after the 2nd item on the stack.
 
-  stack-pop
+  [stack-pop
+   (configurable-ctc
+    [max (->i ([S stack?])
+              (values
+               [first-result (S) (equal?/c (first S))]
+               [second-result (S) (equal?/c (rest S))]))]
+    [types (stack? . -> . (values any/c stack?))])]
   ;; (-> x::xs (Values x xs))
   ;; Pop the top item from the stack, return both the item and the new stack.
 
-  stack-push
+  [stack-push
+   (configurable-ctc
+    [max (->i ([S stack?]
+               [v any/c])
+              [result (S v)
+                      (equal?/c (cons v S))])]
+    [types (stack? any/c . -> . stack?)])]
   ;; (-> xs x x::xs)
   ;; Push an item on to the stack
 
-  stack-swap
+  [stack-swap
+   (configurable-ctc
+    [max (->i ([S (stack-with-min-size/c 2)])
+              [result (S)
+                      (equal?/c
+                       (cons (second S)
+                             (cons (first S)
+                                   (rest (rest S)))))])]
+    [types (stack? . -> . stack?)])])
   ;; (-> x::y::xs y::x::xs)
   ;; Swap the positions of the first 2 items on the stack.
 )

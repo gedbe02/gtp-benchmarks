@@ -1,9 +1,95 @@
 #lang racket
 
 (provide
-  command%
-  CMD*
-)
+ (contract-out
+  [command%
+   (configurable-ctc
+    [max command%/c]
+    [types command%/c])]
+  [CMD*
+   (configurable-ctc
+    [max (and/c env?
+                (list/c
+                 ;; exit
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (or (eof-object? v)
+                                  (is-or-starts-with? exit? v))
+                              'EXIT
+                              #f)])
+                 ;; help
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (is-or-starts-with? help? v)
+                              (equal?/c (cons E S))
+                              #f)])
+
+                 (binop-command%/c-for +)
+                 (binop-command%/c-for -)
+                 (binop-command%/c-for *)
+
+                 ;; drop
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (and (is-or-starts-with? (curry equal? 'drop) v)
+                                   ((list-with-min-size/c 1) S))
+                              (equal?/c (cons E (rest S)))
+                              #f)])
+                 ;; dup
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (and (is-or-starts-with? (curry equal? 'dup) v)
+                                   ((list-with-min-size/c 1) S))
+                              (equal?/c (cons E (cons (first S) S)))
+                              #f)])
+                 ;; over
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (and (is-or-starts-with? (curry equal? 'over) v)
+                                   ((list-with-min-size/c 2) S))
+                              (equal?/c
+                               (cons E (cons (first S)
+                                             (cons (second S)
+                                                   (cons (first S)
+                                                         (rest (rest S)))))))
+                              #f)])
+                 ;; swap
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (and (is-or-starts-with? (curry equal? 'swap) v)
+                                   ((list-with-min-size/c 2) S))
+                              (equal?/c
+                               (cons E
+                                     (cons (second S)
+                                           (cons (first S)
+                                                 (rest (rest S))))))
+                              #f)])
+                 ;; push
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (or (and (list? v)
+                                       (>= (length v) 1)
+                                       (exact-integer? (first v)))
+                                  (and (list? v)
+                                       (>= (length v) 2)
+                                       (equal? (first v) 'push)
+                                       (exact-integer? (second v))))
+                              (equal?/c
+                               (cons E
+                                     (cons (if (exact-integer? (first v))
+                                               (first v)
+                                               (second v))
+                                           S)))
+                              #f)])
+                 ;; show
+                 ;; lltemporal: prints
+                 (command%?-with-exec
+                  (args E S v)
+                  [result (if (is-or-starts-with? (curry equal? 'show) v)
+                              (equal?/c (cons E S))
+                              #f)])))]
+    [types env?])])
+ )
 
 ;; -----------------------------------------------------------------------------
 
