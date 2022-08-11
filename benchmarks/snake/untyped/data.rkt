@@ -29,9 +29,9 @@
 (define/ctc-helper food=?/c posn=?/c)
 
 (define/ctc-helper snake-dir? (or/c "up"
-                         "down"
-                         "left"
-                         "right"))
+                                    "down"
+                                    "left"
+                                    "right"))
 (struct snake (dir segs))
 
 (define/ctc-helper (snake-type? s)
@@ -74,23 +74,23 @@
 
 (define/ctc-helper world-type? (world/c snake-type? food?))
 
-(define/contract (posn=? p1 p2)
-  (configurable-ctc
-   [max (->i ([p1 posn?]
-              [p2 posn?])
-             [result (p1 p2)
-                     (match* (p1 p2)
-                       [((posn x y) (posn x y)) #t]
-                       [(_ _) #f])])]
-   [types (posn? posn? . -> . boolean?)])
-
+(define (posn=? p1 p2)
   (and (= (posn-x p1) (posn-x p2))
        (= (posn-y p1) (posn-y p2))))
 
 (provide [struct-out posn])
 
 (provide
- posn=?
+ (contract-out
+  [posn=?
+   (configurable-ctc
+    [max (->i ([p1 posn?]
+               [p2 posn?])
+              [result (p1 p2)
+                      (match* (p1 p2)
+                        [((posn x y) (posn x y)) #t]
+                        [(_ _) #f])])]
+    [types (posn? posn? . -> . boolean?)])])
  [struct-out snake]
  [struct-out world]
  posn?
