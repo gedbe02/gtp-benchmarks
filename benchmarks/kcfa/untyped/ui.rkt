@@ -12,7 +12,7 @@
   (only-in racket/string string-join)
   "../../../ctcs/precision-config.rkt"
   "../../../ctcs/common.rkt"
-)
+  )
 
 (require "ai.rkt")
 ;(require/typed/check "ai.rkt"
@@ -23,13 +23,42 @@
 ;; ---
 
 (provide
-  summarize
-  empty-mono-store
-  monovariant-value
-  monovariant-store
-  analyze
-  format-mono-store
-)
+ (contract-out
+  [summarize
+   (configurable-ctc
+    [max (->i ([states (set/c State-type? #:kind 'immutable)])
+              [result (states)
+                      (equal?/c
+                       (foldl store-join
+                              empty-store
+                              (set-map states State-store)))])]
+    [types ((set/c State-type? #:kind 'immutable) . -> . Store/c)])]
+  [empty-mono-store
+   MonoStore/c]
+  [monovariant-value
+   (configurable-ctc
+    [max (->i ([v Closure-type/c])
+              [result (v) (equal?/c (Closure-lam v))])]
+    [types (Closure-type/c . -> . Lam-type/c)])]
+  [monovariant-store
+   (configurable-ctc
+    [max (->i ([store Store/c])
+              [result MonoStore/c]
+              #:post (store result)
+              (for/and ([(b vs) (in-hash store)])
+                (define result-vs (hash-ref result (Binding-var b) set))
+                (define mono-vs (list->set (set-map vs monovariant-value)))
+                (subset? mono-vs result-vs)))]
+    [types (Store/c . -> . MonoStore/c)])]
+  [analyze
+   (configurable-ctc
+    [max (->i ([exp (and/c Exp-type/c closed-term?)])
+              ;; lltodo: can be stronger?
+              [result MonoStore/c])]
+    [types (Exp-type/c . -> . MonoStore/c)])]
+  [format-mono-store
+   (MonoStore/c . -> . string?)])
+ )
 
 ;; =============================================================================
 
@@ -40,43 +69,21 @@
                                        (set/c Exp-type/c #:kind 'immutable)))
 
 ;(: summarize (-> (Setof State) Store))
-(define/contract (summarize states)
-  (configurable-ctc
-   [max (->i ([states (set/c State-type? #:kind 'immutable)])
-             [result (states)
-                     (equal?/c
-                      (foldl store-join
-                             empty-store
-                             (set-map states State-store)))])]
-   [types ((set/c State-type? #:kind 'immutable) . -> . Store/c)])
+(define (summarize states)
   (for/fold ([store empty-store])
-    ([state (in-set states)])
+            ([state (in-set states)])
     (store-join (State-store state) store)))
 
 ;(: empty-mono-store MonoStore)
-(define/contract empty-mono-store
-  MonoStore/c
+(define empty-mono-store
   (hash))
 
 ;(: monovariant-value (-> Value Lam))
-(define/contract (monovariant-value v)
-  (configurable-ctc
-   [max (->i ([v Closure-type/c])
-             [result (v) (equal?/c (Closure-lam v))])]
-   [types (Closure-type/c . -> . Lam-type/c)])
+(define (monovariant-value v)
   (Closure-lam v))
 
 ;(: monovariant-store (-> Store MonoStore))
-(define/contract (monovariant-store store)
-  (configurable-ctc
-   [max (->i ([store Store/c])
-             [result MonoStore/c]
-             #:post (store result)
-             (for/and ([(b vs) (in-hash store)])
-               (define result-vs (hash-ref result (Binding-var b) set))
-               (define mono-vs (list->set (set-map vs monovariant-value)))
-               (subset? mono-vs result-vs)))]
-   [types (Store/c . -> . MonoStore/c)])
+(define (monovariant-store store)
   ;(: update-lam (-> (Setof Value) (-> (Setof Exp) (Setof Exp))))
   (define (update-lam vs)
     ;(: v-vs (Setof Lam))
@@ -86,19 +93,14 @@
   ;(: default-lam (-> (Setof Exp)))
   (define (default-lam) (set))
   (for/fold ([mono-store empty-mono-store])
-    ([(b vs) (in-hash store)])
+            ([(b vs) (in-hash store)])
     (hash-update mono-store
                  (Binding-var b)
                  (update-lam vs)
                  default-lam)))
 
 ;(: analyze (-> Exp MonoStore))
-(define/contract (analyze exp)
-  (configurable-ctc
-   [max (->i ([exp (and/c Exp-type/c closed-term?)])
-             ;; lltodo: can be stronger?
-             [result MonoStore/c])]
-   [types (Exp-type/c . -> . MonoStore/c)])
+(define (analyze exp)
   (define init-state (State exp empty-benv empty-store time-zero))
   (define states (explore (set) (list init-state)))
   (define summary (summarize states))
@@ -106,16 +108,15 @@
   mono-store)
 
 ;(: format-mono-store (-> MonoStore String))
-(define/contract (format-mono-store ms)
-  (MonoStore/c . -> . string?)
+(define (format-mono-store ms)
   ;(: res (Listof String))
   (define res
     (for/list ([(i vs) (in-hash ms)])
       (format "~a:\n~a"
               i
               (string-join
-                (for/list ([v (in-set vs)])
-                  (format "\t~S" v))
-                "\n"))))
+               (for/list ([v (in-set vs)])
+                 (format "\t~S" v))
+               "\n"))))
   (string-join res "\n"))
 
