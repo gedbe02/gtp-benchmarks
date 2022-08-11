@@ -2,8 +2,6 @@
 
 ;; Copyright 2014 John Clements, except the portion that comes from wikipedia!
 
-(provide char-table
-         morse-string?)
 (require racket/match
          racket/contract
          "../../../ctcs/precision-config.rkt"
@@ -11,9 +9,17 @@
          racket/string
          racket/set)
 
-(define/contract wikipedia-text
-  string?
-#<<#
+(provide
+ (contract-out
+  [char-table
+   (configurable-ctc
+    [max (and/c (hash/c char? (and/c non-empty-string? morse-string?))
+                (hash-with-keys/c all-chars))]
+    [types (hash/c char? string?)])])
+ morse-string?)
+
+(define wikipedia-text
+  #<<#
 | {{Audio-nohelp|A morse code.ogg|A}} || '''·&nbsp;–'''
 | {{Audio-nohelp|J morse code.ogg|J}} || '''·&nbsp;–&nbsp;–&nbsp;–'''
 | {{Audio-nohelp|S morse code.ogg|S}} || '''·&nbsp;·&nbsp;·'''
@@ -69,7 +75,7 @@
 | [[Ampersand]] [&] || '''·&nbsp;–&nbsp;·&nbsp;·&nbsp;·'''
 | [[Commercial at|At sign]] [@] || '''·&nbsp;–&nbsp;–&nbsp;·&nbsp;–&nbsp;·'''
 #
-)
+  )
 
 (define/ctc-helper ((length=/c n) l)
   (= (length l) n))
@@ -78,10 +84,7 @@
   (length (string-split str "\n" #:trim? #f)))
 
 ;; the lines of the wikipedia text
-(define/contract lines
-  (configurable-ctc
-   [max (and/c (listof string?) (length=/c (lines-in wikipedia-text)))]
-   [types (listof string?)])
+(define lines
   (regexp-split #px"\n" wikipedia-text))
 
 ;; Does `target` contain any of `strs`?
@@ -106,16 +109,7 @@
       [{'() (not '())} #f])))
 
 ;; replace some unicode chars with ascii ones in the wikipedia patterns
-(define/contract (clean-pattern pat)
-  (configurable-ctc
-   [max (->i ([pat string?])
-             [result (pat)
-                     (and/c string?
-                            (not/c (string-contains/c "·" "–" "&nbsp;"))
-                            (subsequence-of/c pat
-                                              #:swap (hash #\· #\.
-                                                           #\– #\-)))])]
-   [types (string? . -> . string?)])
+(define (clean-pattern pat)
   (regexp-replace*
    #px"·"
    (regexp-replace*
@@ -138,27 +132,23 @@
   (subset? key-set (hash-keys h)))
 
 ;; parse the wikipedia text into a table mapping characters to their morse code representations
-(define/contract char-table
-  (configurable-ctc
-   [max (and/c (hash/c char? (and/c non-empty-string? morse-string?))
-               (hash-with-keys/c all-chars))]
-   [types (hash/c char? string?)])
-(make-hash
- (for/list
-   ([l lines])
-    (match 
-        (regexp-match #px"^\\| \\{\\{[^|]*\\|[^|]*\\|(.)\\}\\} \\|\\| '''([^']*)'''" l)
-      [#f
-       (match 
-           (regexp-match #px"^\\| \\[\\[[^]]*\\]\\] \\[([^]]*)\\] \\|\\| '''([^']*)'''" l)
-         [(list whole-match char pattern)
-          (cond [(and char pattern)
-                 (cons (car (string->list char)) (clean-pattern pattern))]
-                [else
-                 (error 'char-table "broken regexp")])]
-         [#f (error 'char-table "what goes here?")])
-       ]
-      [(list whole-match letter pattern) 
-       (cond [(and letter pattern)
-              (cons (char-downcase (car (string->list letter))) (clean-pattern pattern))]
-             [else (error 'char-table "broken regexp 2")])]))))
+(define char-table
+  (make-hash
+   (for/list
+       ([l lines])
+     (match 
+         (regexp-match #px"^\\| \\{\\{[^|]*\\|[^|]*\\|(.)\\}\\} \\|\\| '''([^']*)'''" l)
+       [#f
+        (match 
+            (regexp-match #px"^\\| \\[\\[[^]]*\\]\\] \\[([^]]*)\\] \\|\\| '''([^']*)'''" l)
+          [(list whole-match char pattern)
+           (cond [(and char pattern)
+                  (cons (car (string->list char)) (clean-pattern pattern))]
+                 [else
+                  (error 'char-table "broken regexp")])]
+          [#f (error 'char-table "what goes here?")])
+        ]
+       [(list whole-match letter pattern) 
+        (cond [(and letter pattern)
+               (cons (char-downcase (car (string->list letter))) (clean-pattern pattern))]
+              [else (error 'char-table "broken regexp 2")])]))))

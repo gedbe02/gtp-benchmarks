@@ -15,41 +15,35 @@
   racket/random)
 
 (require (only-in "morse-code-strings.rkt"
-  string->morse))
+                  string->morse))
 
 (require (only-in "levenshtein.rkt"
-               string-levenshtein))
+                  string-levenshtein))
 
-(define/contract word-frequency-list
-  string?
+(define word-frequency-list
   "./../base/frequency.rktd")
-(define/contract word-frequency-list-small
-  string?
+(define word-frequency-list-small
   "./../base/frequency-small.rktd")
 
-(define/contract (file->words filename)
-  (-> path-string? (listof string?))
+(define (file->words filename)
   (define words+freqs (file->value (string->path filename)))
   (for/list ([word+freq  words+freqs])
     (car word+freq)))
 
-(define/contract allwords (listof string?) (file->words word-frequency-list))
+(define allwords (file->words word-frequency-list))
 
-(define/contract words-small
-  (listof string?)
+(define words-small
   (file->words word-frequency-list-small))
 
 ;; ll: `words-small` far too large
-(define/contract words-smaller
-  (listof string?)
+(define words-smaller
   (parameterize ([current-pseudo-random-generator
                   (make-pseudo-random-generator)])
     (random-seed 42)
     (random-sample words-small 10
                    #:replacement? #f)))
 
-(define/contract (main words)
-  (-> (listof string?) void?)
+(define (main words)
   (for* ([w1 (in-list words)]
          [w2 (in-list words)])
     (string->morse w1)
