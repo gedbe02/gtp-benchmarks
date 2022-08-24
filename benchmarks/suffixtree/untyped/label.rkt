@@ -37,7 +37,11 @@
            [max
             (->i ([label-element (or/c string? vector?)])
                  [result (label-element)
-                         (lambda (result) 
+                         ; (struct/dc label [i (=/c 0)]
+                           ;[j (=/c (cond [(string? label-element) (string-length label-element)]
+                            ;                                   [(vector? label-element) (vector-length label-element)]))]
+                           ;[datum (or/c string? vector?)])
+                         (lambda (result)
                            (and (label? result)
                                 (and (= (label-i result) 0)
                                      (= (label-j result) (cond [(string? label-element) (string-length label-element)]

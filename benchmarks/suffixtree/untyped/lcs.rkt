@@ -54,6 +54,7 @@
  (contract-out
   [longest-common-sublabel
    (configurable-ctc
+    ; can be better
     [max
      (->i ([label-1 label?]
            [label-2 label?])
@@ -167,6 +168,7 @@
                                   (and ((listof node?) (node-children n))
                                        (or (node? (node-suffix-link n))
                                            (equal? (node-suffix-link n) #f)))))))])
+          ; check path
           [result (node)
                   (lambda (r)
                     (and (label? r)

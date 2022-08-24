@@ -188,21 +188,23 @@
   [node-follow/k
    (configurable-ctc
     [max
-   (->i ([node (lambda (node)
+   (parametric->/c
+    [A B C D]
+    (lambda (node)
                  (and (node? node)
                       (and (label? (node-up-label node))
                            (and (or (node? (node-parent node))
                                     (equal? (node-parent node) #f))
                                 (and ((listof node?) (node-children node))
                                      (or (node? (node-suffix-link node))
-                                         (equal? (node-suffix-link node) #f)))))))]
-         [label (lambda (label)
+                                         (equal? (node-suffix-link node) #f)))))))
+         (lambda (label)
                   (and (label? label)
                        (and (or (string? (label-datum label))
                                 (vector? (label-datum label)))
                             (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
-                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))]
-         [A (-> (lambda (node)
+                                 (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
+         (-> (lambda (node)
                   (and (node? node)
                        (and (label? (node-up-label node))
                             (and (or (node? (node-parent node))
@@ -210,8 +212,8 @@
                                  (and ((listof node?) (node-children node))
                                       (or (node? (node-suffix-link node))
                                           (equal? (node-suffix-link node) #f)))))))
-                any/c)]
-         [B (-> (lambda (node)
+                A)
+         (-> (lambda (node)
                   (and (node? node)
                        (and (label? (node-up-label node))
                             (and (or (node? (node-parent node))
@@ -225,8 +227,8 @@
                                 (vector? (label-datum label)))
                             (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
                                  (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
-                any/c)]
-         [C (-> (lambda (node)
+                B)
+         (-> (lambda (node)
                   (and (node? node)
                        (and (label? (node-up-label node))
                             (and (or (node? (node-parent node))
@@ -241,8 +243,8 @@
                             (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
                                  (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
                 (and/c integer? (or/c positive? zero?))
-                any/c)]
-         [D (-> (lambda (node)
+                C)
+         (-> (lambda (node)
                   (and (node? node)
                        (and (label? (node-up-label node))
                             (and (or (node? (node-parent node))
@@ -258,14 +260,13 @@
                             (and (and (integer? (label-i label)) (or (positive? (label-i label)) (zero? (label-i label))))
                                  (and (integer? (label-j label)) (or (positive? (label-j label)) (zero? (label-j label))))))))
                 (and/c integer? (or/c positive? zero?))
-                any/c)])
-        [result (node label A B C D)
+                D)
                 (or/c A
                       B
                       C
-                      D)])]
+                      D))]
     [types
-     (-> node? label? (-> node?) (-> node? number?) (-> node? label? number?) (-> node? number? label? number?) any/c)])]))
+     (parametric->/c [A B C D] node? label? (-> node? A) (-> node? number? B) (-> node? label? number? C) (-> node? number? label? number? D) (or/c A B C D))])]))
 
 
 ;; new-suffix-tree: void -> suffix-tree
